@@ -415,10 +415,14 @@ internal static partial class PluginLoader
         => DispatchToPlugins(p => p.OnEntityCreated(args), nameof(IDeadworksPlugin.OnEntityCreated));
 
     public static void DispatchEntitySpawned(EntitySpawnedEvent args)
-        => DispatchToPlugins(p => p.OnEntitySpawned(args), nameof(IDeadworksPlugin.OnEntitySpawned));
+    {
+        GameRules.OnEntitySpawned(args.Entity);
+        DispatchToPlugins(p => p.OnEntitySpawned(args), nameof(IDeadworksPlugin.OnEntitySpawned));
+    }
 
     public static void DispatchEntityDeleted(EntityDeletedEvent args)
     {
+        GameRules.OnEntityDeleted(args.Entity);
         DispatchToPlugins(p => p.OnEntityDeleted(args), nameof(IDeadworksPlugin.OnEntityDeleted));
         EntityDataRegistry.OnEntityDeleted(args.Entity.EntityHandle);
     }

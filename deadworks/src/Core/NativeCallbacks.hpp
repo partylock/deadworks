@@ -105,6 +105,9 @@ struct NativeCallbacks {
     int32_t(__cdecl *ExecuteAbility)(void *abilityComponent, void *ability, uint8_t altCast, uint8_t flags);
     void *(__cdecl *GetAbilityBySlot)(void *abilityComponent, int16_t slot);
     void(__cdecl *ToggleActivate)(void *ability, uint8_t activate);
+    int32_t(__cdecl *GetMaxHealth)(void *entity);
+    int32_t(__cdecl *Heal)(void *entity, float amount);
+    void *(__cdecl *GetGlobalVars)();
 };
 
 void PopulateNativeCallbacks(NativeCallbacks &callbacks);

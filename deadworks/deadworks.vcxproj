@@ -332,6 +332,7 @@ xcopy "$(ProjectDir)..\config\deadworks_mem.jsonc" "$(DeadlockDir)\..\..\citadel
     <ClInclude Include="src\SDK\CCitadelPlayerController.hpp" />
     <ClInclude Include="src\SDK\CCitadelPlayerPawn.hpp" />
     <ClInclude Include="src\SDK\CEntitySystem.hpp" />
+    <ClInclude Include="src\SDK\CGameSceneNode.hpp" />
     <ClInclude Include="src\SDK\CitadelAbilityProperty.hpp" />
     <ClInclude Include="src\SDK\CitadelAbilityVData.hpp" />
     <ClInclude Include="src\SDK\CModifierProperty.hpp" />

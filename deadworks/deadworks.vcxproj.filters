@@ -380,5 +380,8 @@
     <ClInclude Include="src\SDK\CitadelAbilityVData.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\SDK\CGameSceneNode.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

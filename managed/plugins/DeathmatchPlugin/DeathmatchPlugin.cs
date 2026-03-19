@@ -43,91 +43,6 @@ public class DeathmatchPlugin : DeadworksPluginBase {
 		return HookResult.Handled;
 	}
 
-	private EntityData<(float, float, float)> _lastMoves = new();
-
-	private int _count = 0;
-	public override void OnProcessUsercmds(ProcessUsercmdsEvent args) {
-		var controller = args.Controller;
-		if (controller == null) return;
-		foreach (var cmd in args.Usercmds) {
-		}
-	}
-
-	private int forcingState = 0;
-	private int counter = 0;
-
-	public override void OnAbilityAttempt(AbilityAttemptEvent args) {
-		if (args.ChangedButtons != 0) {
-			Console.WriteLine($"ChangedButtons: {args.ChangedButtons}");
-		}
-
-		counter++;
-		if (forcingState == 1) {
-			args.Force(InputButton.Ability4);
-			args.Force(InputButton.AltCast);
-			forcingState = 2;
-			counter = 0;
-		} else if (forcingState == 2 && counter > 5) {
-			// args.Force(InputButton.AltCast);
-			forcingState = 0;
-		}
-	}
-
-	[ChatCommand("paa")]
-	public HookResult CmdPaa(ChatCommandContext ctx) {
-		forcingState = 1;
-		if (false) {
-			var comp = ctx.Controller?.GetHeroPawn()?.AbilityComponent;
-			if (comp != null) {
-				var ability = comp.GetAbilityBySlot(EAbilitySlot.Signature3);
-				if (ability != null) {
-					comp.ToggleActivate(ability, false);
-					comp.ExecuteAbility(ability);
-					// comp.ToggleActivate(ability, false);
-				}
-			}
-		}
-		return HookResult.Handled;
-	}
-
-	[ChatCommand("name")]
-	public HookResult CmdName(ChatCommandContext ctx) {
-		Console.WriteLine($"{ctx.Controller?.PlayerName}");
-		return HookResult.Handled;
-	}
-
-	[ChatCommand("die")]
-	public HookResult CmdDie(ChatCommandContext ctx) {
-		var pawn = ctx.Controller?.GetHeroPawn()?.As<CCitadelPlayerPawn>();
-		var dmgInfo = new CTakeDamageInfo(10000f, attacker: pawn);
-		dmgInfo.DamageFlags |= TakeDamageFlags.AllowSuicide;
-		pawn?.TakeDamage(dmgInfo);
-		return HookResult.Handled;
-	}
-
-	[ChatCommand("bleh")]
-	public HookResult CmdBleh(ChatCommandContext ctx) {
-		var pawn = ctx.Controller?.GetHeroPawn()?.As<CCitadelPlayerPawn>();
-		if (pawn == null) return HookResult.Handled;
-
-		using var kv = new KeyValues3();
-		kv.SetFloat("duration", 10.0f);
-		/*pawn.AddModifier("citadel_ability_tangotether/citadel_modifier_tangotether_tether/citadel_modifier_tangotether_tether_receiver",
-			abilityValues: new() {
-				["BonusFireRate"] = 1000,
-			}, kv: kv);*/
-
-		var ability = pawn.AbilityComponent.GetAbilityBySlot(EAbilitySlot.Innate1);
-		pawn.AddModifier("synth_affliction/modifier_synth_affliction_debuff",
-			abilityValues: new() { ["DPS"] = 5.0f },
-			kv: kv, ability: ability);
-
-		// var ability = pawn.AbilityComponent.GetAbilityBySlot(EAbilitySlot.Innate1);
-		// pawn.AddModifier("modifier_citadel_knockdown", kv: kv);
-
-		return HookResult.Handled;
-	}
-
 	[GameEventHandler("player_respawned")]
 	public HookResult OnPlayerRespawned(PlayerRespawnedEvent args) {
 		var pawn = args.Userid;
@@ -141,7 +56,6 @@ public class DeathmatchPlugin : DeadworksPluginBase {
 			var pos = spawn.Pos.Length >= 3 ? new Vector3(spawn.Pos[0], spawn.Pos[1], spawn.Pos[2]) : (Vector3?)null;
 			var ang = spawn.Ang.Length >= 3 ? new Vector3(spawn.Ang[0], spawn.Ang[1], spawn.Ang[2]) : (Vector3?)null;
 			pawn.Teleport(position: pos, angles: ang);
-			pawn.Health = pawn.MaxHealth;
 		}
 
 		return HookResult.Continue;
@@ -213,93 +127,6 @@ public class DeathmatchPlugin : DeadworksPluginBase {
 		return HookResult.Stop;
 	}
 
-	[ChatCommand("test1")]
-	public HookResult CmdTest1(ChatCommandContext ctx) {
-		var pawn = ctx.Controller?.GetHeroPawn();
-		if (pawn == null) {
-			Console.WriteLine("No pawn found");
-			return HookResult.Handled;
-		}
-		Console.WriteLine($"m_bInRegenerationZone = {pawn.InRegenerationZone}");
-		return HookResult.Handled;
-	}
-
-	[ChatCommand("trace")]
-	public HookResult CmdTrace(ChatCommandContext ctx) {
-		var pawn = ctx.Controller?.GetHeroPawn()?.As<CCitadelPlayerPawn>();
-		if (pawn == null) {
-			Console.WriteLine("No pawn found for trace");
-			return HookResult.Handled;
-		}
-
-		var eye = pawn.EyePosition;
-		var eyeAngles = pawn.EyeAngles;
-		var camAngles = pawn.CameraAngles;
-		var viewAngles = pawn.ViewAngles;
-
-		Console.WriteLine($"[trace] EyeAngles=({eyeAngles.X:F4},{eyeAngles.Y:F4},{eyeAngles.Z:F4}) [networked, quantized 11-bit]");
-		Console.WriteLine($"[trace] CamAngles=({camAngles.X:F4},{camAngles.Y:F4},{camAngles.Z:F4}) [m_angClientCamera]");
-		Console.WriteLine($"[trace] ViewAngles=({viewAngles.X:F4},{viewAngles.Y:F4},{viewAngles.Z:F4}) [v_angle, raw from CUserCmd]");
-		Console.WriteLine($"[trace] EyePos=({eye.X:F1},{eye.Y:F1},{eye.Z:F1}) AbsOrigin=({pawn.Position.X:F1},{pawn.Position.Y:F1},{pawn.Position.Z:F1})");
-
-		// Use v_angle — raw server-side view angles from user commands, no quantization
-		var angles = viewAngles;
-		float pitch = angles.X * MathF.PI / 180f;
-		float yaw = angles.Y * MathF.PI / 180f;
-		var forward = new System.Numerics.Vector3(
-			MathF.Cos(pitch) * MathF.Cos(yaw),
-			MathF.Cos(pitch) * MathF.Sin(yaw),
-			-MathF.Sin(pitch));
-
-		var end = eye + forward * 10000f;
-
-		Console.WriteLine($"[trace] eye=({eye.X:F1},{eye.Y:F1},{eye.Z:F1}) end=({end.X:F1},{end.Y:F1},{end.Z:F1}) pawnIdx={pawn.EntityIndex}");
-
-		// Direct trace with minimal setup for debugging
-		unsafe {
-			var trace = CGameTrace.Create();
-			var ray = new Ray_t { Type = RayType_t.Line };
-			var filter = new CTraceFilter(true) {
-				IterateEntities = true, // multi-hit path, calls ShouldHitEntity to filter player
-				QueryShapeAttributes = new RnQueryShapeAttr_t {
-					ObjectSetMask = RnQueryObjectSet.All,
-					InteractsWith = MaskTrace.Solid,
-					InteractsExclude = MaskTrace.Empty,
-					InteractsAs = MaskTrace.Empty,
-					CollisionGroup = CollisionGroup.CitadelBullet,
-					HitSolid = true,
-				}
-			};
-			filter.QueryShapeAttributes.EntityIdsToIgnore[0] = (uint)pawn.EntityIndex;
-
-			Console.WriteLine($"[trace] sizeof Ray_t={sizeof(Ray_t)} CTraceFilter={sizeof(CTraceFilter)} CGameTrace={sizeof(CGameTrace)}");
-			Console.WriteLine($"[trace] filter EntityIdsToIgnore[0]={filter.QueryShapeAttributes.EntityIdsToIgnore[0]}");
-
-			Trace.TraceShape(eye, end, ray, filter, ref trace);
-
-			Console.WriteLine($"[trace] frac={trace.Fraction:F6} startInSolid={trace.StartInSolid} pEntity=0x{trace.pEntity:X}");
-			Console.WriteLine($"[trace] hitPoint=({trace.HitPoint.X:F1},{trace.HitPoint.Y:F1},{trace.HitPoint.Z:F1})");
-			Console.WriteLine($"[trace] startPos=({trace.StartPos.X:F1},{trace.StartPos.Y:F1},{trace.StartPos.Z:F1})");
-			Console.WriteLine($"[trace] endPos=({trace.EndPos.X:F1},{trace.EndPos.Y:F1},{trace.EndPos.Z:F1})");
-
-			var slot = ctx.Message.SenderSlot;
-			var hitPos = eye + (end - eye) * trace.Fraction;
-			var text = trace.DidHit
-				? $"Trace hit at ({hitPos.X:F1}, {hitPos.Y:F1}, {hitPos.Z:F1}) frac={trace.Fraction:F4}"
-				: "Trace: no hit";
-
-			Console.WriteLine(text);
-			var msg = new CCitadelUserMsg_ChatMsg {
-				PlayerSlot = slot,
-				Text = text,
-				AllChat = true
-			};
-			NetMessages.Send(msg, RecipientFilter.Single(slot));
-
-			return HookResult.Handled;
-		}
-	}
-
 	public override void OnUnload() => Console.WriteLine("Deathmatch unloaded!");
 
 	public override void OnPrecacheResources() {
@@ -340,8 +167,13 @@ public class DeathmatchPlugin : DeadworksPluginBase {
 
 	[GameEventHandler("player_hero_changed")]
 	public HookResult OnPlayerHeroChanged(PlayerHeroChangedEvent args) {
-		// Otherwise AP carries
-		args.Userid?.As<CCitadelPlayerPawn>()?.ResetHero();
+		var pawn = args.Userid?.As<CCitadelPlayerPawn>();
+		if (pawn != null) {
+			// Otherwise AP carries
+			pawn.ResetHero();
+			pawn.Heal(pawn.GetMaxHealth());
+		}
+
 		return HookResult.Continue;
 	}
 

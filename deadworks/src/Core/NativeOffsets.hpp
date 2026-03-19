@@ -16,6 +16,10 @@ constexpr uintptr_t kSubclassDefDisabled = 0x2A;
 // CBaseEntity
 constexpr int kVtblTeleport = 163;
 
+// CBaseEntity
+constexpr int kVtblHeal = 123;
+constexpr int kVtblGetMaxHealth = 181;
+
 // CBasePlayerController
 constexpr int kVtblChangeTeam = 103;
 

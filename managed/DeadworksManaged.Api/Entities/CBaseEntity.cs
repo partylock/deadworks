@@ -228,6 +228,12 @@ public unsafe class CBaseEntity : NativeEntity {
 	private static readonly SchemaAccessor<int> _maxHealth = new("CBaseEntity"u8, "m_iMaxHealth"u8);
 	public int MaxHealth { get => _maxHealth.Get(Handle); set => _maxHealth.Set(Handle, value); }
 
+	/// <summary>Gets the effective max health through the engine virtual call (accounts for modifiers, abilities, buffs).</summary>
+	public int GetMaxHealth() => NativeInterop.GetMaxHealth((void*)Handle);
+
+	/// <summary>Heals the entity by the specified amount (clamped to max health). Returns the actual amount healed.</summary>
+	public int Heal(float amount) => NativeInterop.Heal((void*)Handle, amount);
+
 	private static readonly SchemaAccessor<byte> _teamNum = new("CBaseEntity"u8, "m_iTeamNum"u8);
 	public int TeamNum { get => _teamNum.Get(Handle); set => _teamNum.Set(Handle, (byte)value); }
 

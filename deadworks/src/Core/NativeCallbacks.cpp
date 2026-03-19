@@ -1,4 +1,5 @@
 #include "NativeCallbacks.hpp"
+#include "NativeOffsets.hpp"
 #include "NativeAbility.hpp"
 #include "NativeDamage.hpp"
 #include "NativeHero.hpp"
@@ -686,6 +687,28 @@ static uint8_t __cdecl NativeGetConCommandAt(uint16_t index, ConCommandInfoResul
 }
 
 // ---------------------------------------------------------------------------
+// Entity virtual function wrappers
+// ---------------------------------------------------------------------------
+
+static int32_t __cdecl NativeGetMaxHealth(void *entity) {
+    if (!entity)
+        return 0;
+    return GetVFunc<int(__thiscall *)(void *)>(entity, offsets::kVtblGetMaxHealth)(entity);
+}
+
+static int32_t __cdecl NativeHeal(void *entity, float amount) {
+    if (!entity)
+        return 0;
+    return GetVFunc<int(__thiscall *)(void *, float)>(entity, offsets::kVtblHeal)(entity, amount);
+}
+
+static void *__cdecl NativeGetGlobalVars() {
+    if (!g_pEngineServer)
+        return nullptr;
+    return g_pEngineServer->GetServerGlobals();
+}
+
+// ---------------------------------------------------------------------------
 // Resolve statics that PostInit needs
 // ---------------------------------------------------------------------------
 
@@ -798,4 +821,11 @@ void deadworks::PopulateNativeCallbacks(NativeCallbacks &callbacks) {
     // CVar / ConCommand index-based access
     callbacks.GetConVarAt = reinterpret_cast<decltype(callbacks.GetConVarAt)>(&NativeGetConVarAt);
     callbacks.GetConCommandAt = reinterpret_cast<decltype(callbacks.GetConCommandAt)>(&NativeGetConCommandAt);
+
+    // Entity virtual function wrappers
+    callbacks.GetMaxHealth = &NativeGetMaxHealth;
+    callbacks.Heal = &NativeHeal;
+
+    // Global vars
+    callbacks.GetGlobalVars = &NativeGetGlobalVars;
 }
