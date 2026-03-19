@@ -77,6 +77,53 @@ public static unsafe class Server {
 		return list;
 	}
 
+	/// <summary>Delegate type for engine log callbacks.</summary>
+	public delegate void EngineLogHandler(string message);
+
+	private static readonly List<EngineLogHandler> _engineLogListeners = new();
+	private static readonly object _engineLogLock = new();
+
+	[UnmanagedCallersOnly(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+	private static void EngineLogTrampoline(byte* message) {
+		if (message == null) return;
+		string msg = Marshal.PtrToStringUTF8((nint)message) ?? "";
+		if (string.IsNullOrEmpty(msg)) return;
+
+		EngineLogHandler[] snapshot;
+		lock (_engineLogLock) {
+			if (_engineLogListeners.Count == 0) return;
+			snapshot = _engineLogListeners.ToArray();
+		}
+		foreach (var handler in snapshot)
+			handler(msg);
+	}
+
+	/// <summary>Adds a listener to receive all engine logging output. Multiple listeners are supported.</summary>
+	public static void AddEngineLogListener(EngineLogHandler handler) {
+		ArgumentNullException.ThrowIfNull(handler);
+		bool wasEmpty;
+		lock (_engineLogLock) {
+			wasEmpty = _engineLogListeners.Count == 0;
+			_engineLogListeners.Add(handler);
+		}
+		if (wasEmpty) {
+			nint fnPtr = (nint)(delegate* unmanaged[Cdecl]<byte*, void>)&EngineLogTrampoline;
+			NativeInterop.SetEngineLogCallback(fnPtr);
+		}
+	}
+
+	/// <summary>Removes a previously added engine log listener. The native listener is unregistered when the last listener is removed.</summary>
+	public static void RemoveEngineLogListener(EngineLogHandler handler) {
+		ArgumentNullException.ThrowIfNull(handler);
+		bool isEmpty;
+		lock (_engineLogLock) {
+			_engineLogListeners.Remove(handler);
+			isEmpty = _engineLogListeners.Count == 0;
+		}
+		if (isEmpty)
+			NativeInterop.SetEngineLogCallback(0);
+	}
+
 	private static string Utf8Str(byte* ptr) =>
 		ptr != null ? Marshal.PtrToStringUTF8((nint)ptr) ?? "" : "";
 }
