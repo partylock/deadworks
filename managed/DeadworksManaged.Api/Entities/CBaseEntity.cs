@@ -6,6 +6,8 @@ namespace DeadworksManaged.Api;
 public unsafe class CBaseEntity : NativeEntity {
 	internal CBaseEntity(nint handle) : base(handle) { }
 
+	public override string ToString() => IsValid ? $"{Classname} ({DesignerName}) [0x{Handle:X}]" : "CBaseEntity [null]";
+
 	/// <summary>Creates a new entity by class name (e.g. "info_particle_system"). Returns null on failure.</summary>
 	public static CBaseEntity? CreateByName(string className) {
 		Span<byte> utf8 = Utf8.Encode(className, stackalloc byte[Utf8.Size(className)]);
