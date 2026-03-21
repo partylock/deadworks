@@ -8,6 +8,7 @@
   <Project Path="managed\DeadworksManaged.csproj" />
   <Project Path="managed\DeadworksManaged.Generators\DeadworksManaged.Generators.csproj" />
   <Folder Name="/Plugins/">
+    <Project Path="managed/plugins/TagPlugin/TagPlugin.csproj" />
     <Project Path="managed\plugins\DeathmatchPlugin\DeathmatchPlugin.csproj" />
     <Project Path="managed\plugins\DumperPlugin\DumperPlugin.csproj" />
     <Project Path="managed\plugins\ExampleTimerPlugin\ExampleTimerPlugin.csproj" />
