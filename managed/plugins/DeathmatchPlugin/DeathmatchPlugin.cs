@@ -22,15 +22,8 @@ public class DeathmatchPlugin : DeadworksPluginBase {
 	[PluginConfig]
 	public DeathmatchConfig Config { get; set; } = new();
 
-	private readonly Dictionary<int, string> _playerNames = new();
-	private bool _rebroadcasting;
-
 	public override void OnLoad(bool isReload) {
 		Console.WriteLine(isReload ? "Deathmatch reloaded!" : "Deathmatch loaded!");
-	}
-
-	public override void OnClientPutInServer(ClientPutInServerEvent args) {
-		_playerNames[args.Slot] = args.Name;
 	}
 
 	[ChatCommand("pos")]
@@ -83,6 +76,8 @@ public class DeathmatchPlugin : DeadworksPluginBase {
 		return HookResult.Continue;
 	}
 
+	private bool _rebroadcasting;
+
 	/// <summary>
 	/// Rebroadcasts chat messages so each recipient sees the message as coming from
 	/// their own player slot (guaranteed to have a portrait), with the actual sender's
@@ -95,7 +90,6 @@ public class DeathmatchPlugin : DeadworksPluginBase {
 
 		var senderSlot = ctx.Message.PlayerSlot;
 
-		// Let system/server messages pass through unchanged
 		if (senderSlot < 0) return HookResult.Continue;
 
 		var text = ctx.Message.Text;
@@ -103,7 +97,7 @@ public class DeathmatchPlugin : DeadworksPluginBase {
 		var laneColor = ctx.Message.LaneColor;
 		var originalMask = ctx.Recipients.Mask;
 
-		var senderName = _playerNames.GetValueOrDefault(senderSlot, $"Player {senderSlot}");
+		var senderName = CBaseEntity.FromIndex<CCitadelPlayerController>(senderSlot)?.PlayerName ?? $"Player {senderSlot}";
 
 		// Rebroadcast to each recipient individually with their own slot
 		_rebroadcasting = true;
@@ -123,7 +117,6 @@ public class DeathmatchPlugin : DeadworksPluginBase {
 			_rebroadcasting = false;
 		}
 
-		// Suppress the original broadcast
 		return HookResult.Stop;
 	}
 
@@ -211,8 +204,6 @@ public class DeathmatchPlugin : DeadworksPluginBase {
 	}
 
 	public override void OnClientDisconnect(ClientDisconnectedEvent args) {
-		_playerNames.Remove(args.Slot);
-
 		var controller = args.Controller;
 		if (controller == null) return;
 
