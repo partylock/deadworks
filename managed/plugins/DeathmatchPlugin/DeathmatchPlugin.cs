@@ -17,6 +17,8 @@ public class DeathmatchConfig {
 	public int HeroSwapIntervalSeconds { get; set; } = 300;
 }
 
+public record SwapState(List<string> Items, Dictionary<EAbilitySlot, (float Start, float End)> Cooldowns, int Gold);
+
 public class DeathmatchPlugin : DeadworksPluginBase {
 	public override string Name => "Deathmatch";
 
@@ -27,6 +29,7 @@ public class DeathmatchPlugin : DeadworksPluginBase {
 	private Heroes _team2Hero;
 	private Heroes _team3Hero;
 	private IHandle? _swapTimer;
+	private readonly EntityData<SwapState> _pendingSwap = new();
 
 	public override void OnLoad(bool isReload) {
 		Console.WriteLine(isReload ? "Deathmatch reloaded!" : "Deathmatch loaded!");
@@ -99,11 +102,65 @@ public class DeathmatchPlugin : DeadworksPluginBase {
 
 		Chat.PrintToChatAll("[DM] New heroes!");
 
+		var curTime = GlobalVars.CurTime;
+
 		foreach (var controller in Players.GetAll()) {
-			var pawn = controller.GetHeroPawn();
+			var pawn = controller.GetHeroPawn()?.As<CCitadelPlayerPawn>();
 			if (pawn == null) continue;
+
+			var items = new List<string>();
+			var cooldowns = new Dictionary<EAbilitySlot, (float Start, float End)>();
+			foreach (var ability in pawn.AbilityComponent.Abilities) {
+				if (ability.IsItem)
+					items.Add(ability.AbilityName);
+
+				if (ability.AbilitySlot == EAbilitySlot.Signature4 && ability.CooldownEnd > curTime)
+					cooldowns[ability.AbilitySlot] = (ability.CooldownStart, ability.CooldownEnd);
+			}
+
+			Console.WriteLine($"[DM] Saved {items.Count} items, {cooldowns.Count} cooldowns for {controller.PlayerName}");
+			foreach (var item in items)
+				Console.WriteLine($"[DM]   item: {item}");
+
+			var gold = pawn.GetCurrency(ECurrencyType.EGold);
+			_pendingSwap[controller] = new SwapState(items, cooldowns, gold);
 			controller.SelectHero(pawn.TeamNum == 2 ? _team2Hero : _team3Hero);
 		}
+
+		// Hero loading is async — restore after it completes.
+		Timer.Once(1.Seconds(), () => {
+			foreach (var controller in Players.GetAll()) {
+				if (!_pendingSwap.TryGet(controller, out var state)) {
+					Console.WriteLine($"[DM] No pending swap for {controller.PlayerName}");
+					continue;
+				}
+
+				var p = controller.GetHeroPawn()?.As<CCitadelPlayerPawn>();
+				if (p == null) { Console.WriteLine("[DM] Pawn is null in timer"); continue; }
+
+				Console.WriteLine($"[DM] Restoring {state.Items.Count} items for {controller.PlayerName}");
+
+				// ResetHero triggers EStartingAmount — _pendingSwap must still
+				// exist so OnModifyCurrency restores saved gold instead of 15000.
+				p.ResetHero();
+				_pendingSwap.Remove(controller);
+
+				p.Heal(p.GetMaxHealth());
+				MaxUpgradeSignatureAbilities(p);
+
+				foreach (var item in state.Items) {
+					var result = p.AddItem(item);
+					Console.WriteLine($"[DM]   AddItem({item}) => {(result != null ? result.ToString() : "NULL")}");
+				}
+
+				foreach (var ability in p.AbilityComponent.Abilities) {
+					if (state.Cooldowns.TryGetValue(ability.AbilitySlot, out var cd)) {
+						ability.CooldownStart = cd.Start;
+						ability.CooldownEnd = cd.End;
+					}
+				}
+			}
+		});
 	}
 
 	[ChatCommand("pos")]
@@ -148,11 +205,16 @@ public class DeathmatchPlugin : DeadworksPluginBase {
 	[GameEventHandler("player_hero_changed")]
 	public HookResult OnPlayerHeroChanged(PlayerHeroChangedEvent args) {
 		var pawn = args.Userid?.As<CCitadelPlayerPawn>();
-		if (pawn != null) {
-			pawn.ResetHero();
-			pawn.Heal(pawn.GetMaxHealth());
-			MaxUpgradeSignatureAbilities(pawn);
-		}
+		if (pawn == null) return HookResult.Continue;
+
+		// Swap in progress — skip, the timer in SwapHeroes handles restoration.
+		var controller = pawn.Controller;
+		if (controller != null && _pendingSwap.Has(controller))
+			return HookResult.Continue;
+
+		pawn.ResetHero();
+		pawn.Heal(pawn.GetMaxHealth());
+		MaxUpgradeSignatureAbilities(pawn);
 		return HookResult.Continue;
 	}
 
@@ -194,8 +256,11 @@ public class DeathmatchPlugin : DeadworksPluginBase {
 	public override HookResult OnModifyCurrency(ModifyCurrencyEvent args) {
 		if (args.CurrencyType == ECurrencyType.EGold) {
 			if (args.Source == ECurrencySource.EStartingAmount) {
-				args.Pawn.ModifyCurrency(ECurrencyType.EGold, 15_000, ECurrencySource.ECheats);
-				args.Pawn.ModifyCurrency(ECurrencyType.EAbilityPoints, 17, ECurrencySource.ECheats);
+				var controller = args.Pawn.Controller;
+				if (controller != null && _pendingSwap.TryGet(controller, out var state))
+					args.Pawn.ModifyCurrency(ECurrencyType.EGold, state.Gold, ECurrencySource.ECheats);
+				else
+					args.Pawn.ModifyCurrency(ECurrencyType.EGold, 15_000, ECurrencySource.ECheats);
 				return HookResult.Stop;
 			}
 			if (args.Source != ECurrencySource.ECheats && args.Source != ECurrencySource.EItemPurchase && args.Source != ECurrencySource.EItemSale)
