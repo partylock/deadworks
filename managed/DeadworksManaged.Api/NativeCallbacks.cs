@@ -99,4 +99,5 @@ internal struct NativeCallbacks
 	public nint Heal;
 	public nint GetGlobalVars;
 	public nint SetEngineLogCallback;
+	public nint SetUpgradeBits;
 }

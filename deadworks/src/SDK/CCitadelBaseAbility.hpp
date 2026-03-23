@@ -14,4 +14,10 @@ class CCitadelBaseAbility : public CBaseEntity {
             deadworks::MemoryDataLoader::Get().GetOffset("CCitadelBaseAbility::ToggleActivate").value());
         fn(this, activate);
     }
+
+    void SetUpgradeBits(int newBits) {
+        static const auto fn = reinterpret_cast<void(__fastcall *)(void *, int)>(
+            deadworks::MemoryDataLoader::Get().GetOffset("CCitadelBaseAbility::SetUpgradeBits").value());
+        fn(this, newBits);
+    }
 };

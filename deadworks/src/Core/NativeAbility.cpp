@@ -420,6 +420,11 @@ static void __cdecl NativeToggleActivate(void *ability, uint8_t activate) {
     static_cast<CCitadelBaseAbility *>(ability)->ToggleActivate(activate);
 }
 
+static void __cdecl NativeSetUpgradeBits(void *ability, int32_t newBits) {
+    if (!ability) return;
+    static_cast<CCitadelBaseAbility *>(ability)->SetUpgradeBits(newBits);
+}
+
 // ---------------------------------------------------------------------------
 // Populate
 // ---------------------------------------------------------------------------
@@ -435,6 +440,7 @@ void deadworks::PopulateAbilityNatives(NativeCallbacks &cb) {
     cb.ExecuteAbility = &NativeExecuteAbility;
     cb.GetAbilityBySlot = &NativeGetAbilityBySlot;
     cb.ToggleActivate = &NativeToggleActivate;
+    cb.SetUpgradeBits = &NativeSetUpgradeBits;
 
     // Install hooks for modifier ability value overrides (optional)
     auto opt = MemoryDataLoader::Get().GetOffset("CCitadelModifier::AutoRegisterAbilityValues");
