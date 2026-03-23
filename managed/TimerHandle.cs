@@ -16,11 +16,18 @@ internal sealed class TimerHandle : IHandle
     }
 
     public bool IsFinished => _finished;
+    public bool ShouldCancelOnMapChange { get; private set; }
 
     public void Cancel()
     {
         _task.Cancelled = true;
         NotifyFinished();
+    }
+
+    public IHandle CancelOnMapChange()
+    {
+        ShouldCancelOnMapChange = true;
+        return this;
     }
 
     internal void NotifyFinished()

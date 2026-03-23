@@ -393,7 +393,10 @@ internal static partial class PluginLoader
         => DispatchToPlugins(p => p.OnPrecacheResources(), nameof(IDeadworksPlugin.OnPrecacheResources));
 
     public static void DispatchStartupServer()
-        => DispatchToPlugins(p => p.OnStartupServer(), nameof(IDeadworksPlugin.OnStartupServer));
+    {
+        TimerRegistry.CancelAllMapChangeTimers();
+        DispatchToPlugins(p => p.OnStartupServer(), nameof(IDeadworksPlugin.OnStartupServer));
+    }
 
     public static void DispatchGameFrame(bool simulating, bool firstTick, bool lastTick)
     {

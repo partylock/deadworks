@@ -56,6 +56,20 @@ internal sealed class TimerService : ITimer, IDisposable
         TimerEngine.EnqueueNextTick(callback);
     }
 
+    /// <summary>Cancels all timers that were marked with CancelOnMapChange.</summary>
+    public void CancelMapChangeTimers()
+    {
+        lock (_lock)
+        {
+            for (int i = _handles.Count - 1; i >= 0; i--)
+            {
+                var handle = _handles[i];
+                if (handle.ShouldCancelOnMapChange && !handle.IsFinished)
+                    handle.Cancel();
+            }
+        }
+    }
+
     public void Dispose()
     {
         lock (_lock)

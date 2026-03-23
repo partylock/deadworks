@@ -10,4 +10,10 @@ public interface IHandle
 
     /// <summary>Whether this timer has completed or been cancelled.</summary>
     bool IsFinished { get; }
+
+    /// <summary>
+    /// Marks this timer to be automatically cancelled on map change (when OnStartupServer fires).
+    /// Returns itself for fluent chaining.
+    /// </summary>
+    IHandle CancelOnMapChange();
 }

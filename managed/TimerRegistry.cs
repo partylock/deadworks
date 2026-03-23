@@ -55,6 +55,16 @@ internal static class TimerRegistry
         }
     }
 
+    /// <summary>Cancels all timers across all plugins that are marked CancelOnMapChange.</summary>
+    public static void CancelAllMapChangeTimers()
+    {
+        lock (_lock)
+        {
+            foreach (var service in _services.Values)
+                service.CancelMapChangeTimers();
+        }
+    }
+
     public static void Clear()
     {
         lock (_lock)
