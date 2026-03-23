@@ -164,9 +164,9 @@ public unsafe class CCitadelAbilityComponent : NativeEntity {
 
 	private static readonly SchemaAccessor<byte> _vecAbilities = new("CCitadelAbilityComponent"u8, "m_vecAbilities"u8);
 
-	public IReadOnlyList<CBaseEntity> Abilities {
+	public IReadOnlyList<CCitadelBaseAbility> Abilities {
 		get {
-			var result = new List<CBaseEntity>();
+			var result = new List<CCitadelBaseAbility>();
 			nint vecAddr = _vecAbilities.GetAddress(Handle);
 			int count = NativeInterop.GetUtlVectorSize((void*)vecAddr);
 			uint* data = (uint*)NativeInterop.GetUtlVectorData((void*)vecAddr);
@@ -174,7 +174,7 @@ public unsafe class CCitadelAbilityComponent : NativeEntity {
 			for (int i = 0; i < count; i++) {
 				void* ent = NativeInterop.GetEntityFromHandle(data[i]);
 				if (ent != null)
-					result.Add(new CBaseEntity((nint)ent));
+					result.Add(new CCitadelBaseAbility((nint)ent));
 			}
 			return result;
 		}
@@ -199,15 +199,41 @@ public unsafe class CCitadelAbilityComponent : NativeEntity {
 	}
 
 	/// <summary>Gets the ability entity in the given slot, or null if no ability occupies that slot.</summary>
-	public CBaseEntity? GetAbilityBySlot(EAbilitySlot slot) {
+	public CCitadelBaseAbility? GetAbilityBySlot(EAbilitySlot slot) {
 		void* result = NativeInterop.GetAbilityBySlot((void*)Handle, (short)slot);
-		return result != null ? new CBaseEntity((nint)result) : null;
+		return result != null ? new CCitadelBaseAbility((nint)result) : null;
 	}
 
 	/// <summary>Activates or deactivates an ability (toggle). This is the actual activation path for most abilities.</summary>
 	public void ToggleActivate(CBaseEntity ability, bool activate = true) {
 		NativeInterop.ToggleActivate((void*)ability.Handle, activate ? (byte)1 : (byte)0);
 	}
+}
+
+/// <summary>Base class for all Deadlock abilities (hero abilities, items, innates, etc.).</summary>
+[NativeClass("CCitadelBaseAbility")]
+public unsafe class CCitadelBaseAbility : CBaseEntity {
+	internal CCitadelBaseAbility(nint handle) : base(handle) { }
+	private static ReadOnlySpan<byte> Class => "CCitadelBaseAbility"u8;
+
+	private static readonly SchemaAccessor<short> _abilitySlot = new(Class, "m_eAbilitySlot"u8);
+	private static readonly SchemaAccessor<bool> _channeling = new(Class, "m_bChanneling"u8);
+	private static readonly SchemaAccessor<bool> _canBeUpgraded = new(Class, "m_bCanBeUpgraded"u8);
+	private static readonly SchemaAccessor<bool> _toggleState = new(Class, "m_bToggleState"u8);
+	private static readonly SchemaAccessor<float> _cooldownEnd = new(Class, "m_flCooldownEnd"u8);
+
+	private static int UpgradeBitsOffset => _abilitySlot.Offset - 0x20;
+
+	public int UpgradeBits {
+		get => *(short*)((byte*)Handle + UpgradeBitsOffset + 2);
+		set => NativeInterop.SetUpgradeBits((void*)Handle, value);
+	}
+	public EAbilitySlot AbilitySlot => (EAbilitySlot)_abilitySlot.Get(Handle);
+	public bool IsChanneling => _channeling.Get(Handle);
+	public bool CanBeUpgraded { get => _canBeUpgraded.Get(Handle); set => _canBeUpgraded.Set(Handle, value); }
+	public bool ToggleState => _toggleState.Get(Handle);
+	public float CooldownEnd => _cooldownEnd.Get(Handle);
+	public bool IsUnlocked => (UpgradeBits & 1) != 0;
 }
 
 /// <summary>Jump ability entity tracking air jump/wall jump counters for a hero.</summary>
