@@ -41,7 +41,19 @@ internal static class ConfigManager
 		if (prop == null)
 			return false;
 
-		return LoadConfigForProperty(plugin, prop, isReload: true);
+		if (!LoadConfigForProperty(plugin, prop, isReload: true))
+			return false;
+
+		try
+		{
+			plugin.OnConfigReloaded();
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"[ConfigManager] {plugin.Name}.OnConfigReloaded() threw: {ex.Message}");
+		}
+
+		return true;
 	}
 
 	private static string GetConfigKey(IDeadworksPlugin plugin) => plugin.GetType().Name;

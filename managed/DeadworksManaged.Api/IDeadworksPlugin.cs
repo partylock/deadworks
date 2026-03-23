@@ -102,6 +102,9 @@ public interface IDeadworksPlugin {
 	/// <summary>Called when a player's usercmds are being processed.</summary>
 	void OnProcessUsercmds(ProcessUsercmdsEvent args) { }
 
+	/// <summary>Called after the plugin's config has been reloaded via <c>dw_reloadconfig</c>.</summary>
+	void OnConfigReloaded() { }
+
 	/// <summary>
 	/// Called when a modifier is about to be applied to an entity.
 	/// Return Stop to block the modifier from being applied.
