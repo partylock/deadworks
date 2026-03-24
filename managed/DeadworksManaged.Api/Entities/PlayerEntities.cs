@@ -332,8 +332,12 @@ public sealed unsafe class CCitadelPlayerPawn : CBasePlayerPawn {
 		}
 	}
 
+	private static readonly SchemaAccessor<int> _level = new("CCitadelPlayerPawn"u8, "m_nLevel"u8);
+	public int Level { get => _level.Get(Handle); set => _level.Set(Handle, value); }
+
 	private static readonly SchemaArrayAccessor<int> _currencies = new("CCitadelPlayerPawn"u8, "m_nCurrencies"u8);
 	public int GetCurrency(ECurrencyType type) => _currencies.Get(Handle, (int)type);
+	public void SetCurrency(ECurrencyType type, int value) => _currencies.Set(Handle, (int)type, value);
 
 	/// <summary>Adds or removes currency from this pawn (e.g. gold, ability points). Use negative <paramref name="amount"/> to spend.</summary>
 	public void ModifyCurrency(ECurrencyType type, int amount, ECurrencySource source,
@@ -443,6 +447,9 @@ public unsafe class PlayerDataGlobal : NativeEntity {
 
 	private static readonly SchemaAccessor<int> _iLevel = new(Class, "m_iLevel"u8);
 	public int Level => _iLevel.Get(Handle);
+
+	private static readonly SchemaAccessor<int> _nHeroID = new(Class, "m_nHeroID"u8);
+	public int HeroID { get => _nHeroID.Get(Handle); set => _nHeroID.Set(Handle, value); }
 
 	private static readonly SchemaAccessor<int> _iMaxAmmo = new(Class, "m_iMaxAmmo"u8);
 	public int MaxAmmo => _iMaxAmmo.Get(Handle);
