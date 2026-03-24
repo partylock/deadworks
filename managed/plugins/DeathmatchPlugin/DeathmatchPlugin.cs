@@ -30,6 +30,11 @@ public class DeathmatchPlugin : DeadworksPluginBase {
 	private Heroes _team3Hero;
 	private IHandle? _swapTimer;
 	private readonly EntityData<SwapState> _pendingSwap = new();
+	private readonly Queue<Heroes> _team2History = new();
+	private readonly Queue<Heroes> _team3History = new();
+	private int _team2Kills;
+	private int _team3Kills;
+	private readonly Dictionary<int, int> _playerKills = new(); // entity index -> kills this round
 
 	public override void OnLoad(bool isReload) {
 		Console.WriteLine(isReload ? "Deathmatch reloaded!" : "Deathmatch loaded!");
@@ -54,6 +59,7 @@ public class DeathmatchPlugin : DeadworksPluginBase {
 		ConVar.Find("citadel_allow_purchasing_anywhere")?.SetInt(1);
 		ConVar.Find("citadel_item_sell_price_ratio")?.SetFloat(1.0f);
 		ConVar.Find("citadel_voice_all_talk")?.SetInt(1);
+		ConVar.Find("sv_alltalk")?.SetInt(1);
 		ConVar.Find("citadel_player_starting_gold")?.SetInt(0);
 		ConVar.Find("citadel_trooper_spawn_enabled")?.SetInt(0);
 		ConVar.Find("citadel_npc_spawn_enabled")?.SetInt(0);
@@ -80,27 +86,70 @@ public class DeathmatchPlugin : DeadworksPluginBase {
 			sign2?.WorldUnitsPerPx = 0.50f;
 			sign2?.JustifyHorizontal = HorizontalJustify.Center;
 			sign2?.JustifyVertical = VerticalJustify.Center;
+
+			var rulesText = "Every minute, each team\nis assigned a random hero!\nThe team with the most kills wins!";
+
+			var rules1 = CPointWorldText.Create(rulesText, new Vector3(0, -966, 443), fontSize: 90f, r: 200, g: 200, b: 200, fontName: "Reaver");
+			rules1?.Teleport(angles: new Vector3(180f, 180f, 270f));
+			rules1?.WorldUnitsPerPx = 0.10f;
+			rules1?.JustifyHorizontal = HorizontalJustify.Center;
+			rules1?.JustifyVertical = VerticalJustify.Center;
+
+			var rules2 = CPointWorldText.Create(rulesText, new Vector3(0, 978, 443), fontSize: 90f, r: 200, g: 200, b: 200, fontName: "Reaver");
+			rules2?.Teleport(angles: new Vector3(180f, 0f, 270f));
+			rules2?.WorldUnitsPerPx = 0.10f;
+			rules2?.JustifyHorizontal = HorizontalJustify.Center;
+			rules2?.JustifyVertical = VerticalJustify.Center;
+
+			var discord1 = CPointWorldText.Create("deadworks.net/discord", new Vector3(-513.4f, -800f, 452.8f), fontSize: 90f, r: 200, g: 50, b: 50, fontName: "Radiance");
+			discord1?.Teleport(angles: new Vector3(180f, 180f, 270f));
+			discord1?.WorldUnitsPerPx = 0.20f;
+			discord1?.JustifyHorizontal = HorizontalJustify.Center;
+			discord1?.JustifyVertical = VerticalJustify.Center;
+
+			var discord2 = CPointWorldText.Create("deadworks.net/discord", new Vector3(513.4f, 800f, 452.8f), fontSize: 90f, r: 200, g: 50, b: 50, fontName: "Radiance");
+			discord2?.Teleport(angles: new Vector3(180f, 0f, 270f));
+			discord2?.WorldUnitsPerPx = 0.20f;
+			discord2?.JustifyHorizontal = HorizontalJustify.Center;
+			discord2?.JustifyVertical = VerticalJustify.Center;
 		});
 	}
 
-	private (Heroes, Heroes) PickTwoRandomHeroes() {
+	private Heroes PickRandomHero(Queue<Heroes> history) {
 		_availableHeroes = Enum.GetValues<Heroes>()
 			.Where(h => h.GetHeroData()?.AvailableInGame == true)
 			.ToArray();
 
-		var first = _availableHeroes[Random.Shared.Next(_availableHeroes.Length)];
+		var candidates = _availableHeroes.Where(h => !history.Contains(h)).ToArray();
+		if (candidates.Length == 0)
+			candidates = _availableHeroes;
+
+		var pick = candidates[Random.Shared.Next(candidates.Length)];
+		history.Enqueue(pick);
+		if (history.Count > 10)
+			history.Dequeue();
+		return pick;
+	}
+
+	private (Heroes, Heroes) PickTwoRandomHeroes() {
+		var first = PickRandomHero(_team2History);
 		Heroes second;
 		do {
-			second = _availableHeroes[Random.Shared.Next(_availableHeroes.Length)];
+			second = PickRandomHero(_team3History);
 		} while (second == first);
 		return (first, second);
 	}
 
 	private void SwapHeroes() {
+		if (_team2Kills > 0 || _team3Kills > 0)
+			AnnounceRoundResults();
+
+		_team2Kills = 0;
+		_team3Kills = 0;
+		_playerKills.Clear();
+
 		(_team2Hero, _team3Hero) = PickTwoRandomHeroes();
 		Console.WriteLine($"[DM] New heroes! Team 2: {_team2Hero.ToHeroName()}, Team 3: {_team3Hero.ToHeroName()}");
-
-		Chat.PrintToChatAll("[DM] New heroes!");
 
 		var curTime = GlobalVars.CurTime;
 
@@ -131,14 +180,12 @@ public class DeathmatchPlugin : DeadworksPluginBase {
 		Timer.Once(1.Seconds(), () => {
 			foreach (var controller in Players.GetAll()) {
 				if (!_pendingSwap.TryGet(controller, out var state)) {
-					Console.WriteLine($"[DM] No pending swap for {controller.PlayerName}");
 					continue;
 				}
 
 				var p = controller.GetHeroPawn()?.As<CCitadelPlayerPawn>();
 				if (p == null) { Console.WriteLine("[DM] Pawn is null in timer"); continue; }
 
-				Console.WriteLine($"[DM] Restoring {state.Items.Count} items for {controller.PlayerName}");
 
 				// ResetHero triggers EStartingAmount — _pendingSwap must still
 				// exist so OnModifyCurrency restores saved gold instead of 15000.
@@ -171,6 +218,62 @@ public class DeathmatchPlugin : DeadworksPluginBase {
 		var ang = pawn.CameraAngles;
 		Console.WriteLine($@"{{ ""pos"": [{pos.X}, {pos.Y}, {pos.Z}], ""ang"": [{ang.X}, {ang.Y}, {ang.Z}] }}");
 		return HookResult.Handled;
+	}
+
+	[GameEventHandler("player_death")]
+	public HookResult OnPlayerDeath(PlayerDeathEvent args) {
+		var attackerPawn = args.AttackerPawn;
+		if (attackerPawn == null) return HookResult.Continue;
+
+		// Don't count suicides
+		var victimPawn = args.UseridPawn;
+		if (victimPawn != null && attackerPawn.EntityIndex == victimPawn.EntityIndex)
+			return HookResult.Continue;
+
+		if (attackerPawn.TeamNum == 2) _team2Kills++;
+		else if (attackerPawn.TeamNum == 3) _team3Kills++;
+
+		var controller = args.AttackerController;
+		if (controller != null) {
+			var idx = controller.EntityIndex;
+			_playerKills[idx] = _playerKills.GetValueOrDefault(idx) + 1;
+		}
+
+		return HookResult.Continue;
+	}
+
+	private void AnnounceRoundResults() {
+		var winnerHero = _team2Kills >= _team3Kills ? _team2Hero : _team3Hero;
+		var winnerKills = Math.Max(_team2Kills, _team3Kills);
+		var loserKills = Math.Min(_team2Kills, _team3Kills);
+
+		// Find MVP — player with the most kills this round
+		int mvpIdx = -1, mvpKills = 0;
+		foreach (var (idx, kills) in _playerKills) {
+			if (kills > mvpKills) {
+				mvpKills = kills;
+				mvpIdx = idx;
+			}
+		}
+
+		var mvpName = "";
+		if (mvpIdx >= 0) {
+			var mvpController = CBaseEntity.FromIndex<CCitadelPlayerController>(mvpIdx);
+			if (mvpController != null)
+				mvpName = mvpController.PlayerName;
+		}
+
+		var isTie = _team2Kills == _team3Kills;
+		var title = isTie ? "Draw!" : $"{winnerHero.ToDisplayName()} wins!";
+		var desc = string.IsNullOrEmpty(mvpName)
+			? $"{_team2Kills} - {_team3Kills}"
+			: $"{_team2Kills} - {_team3Kills}  |  MVP: {mvpName} ({mvpKills} kills)";
+
+		var msg = new CCitadelUserMsg_HudGameAnnouncement {
+			TitleLocstring = title,
+			DescriptionLocstring = desc
+		};
+		NetMessages.Send(msg, RecipientFilter.All);
 	}
 
 	[GameEventHandler("player_respawned")]
@@ -244,7 +347,11 @@ public class DeathmatchPlugin : DeadworksPluginBase {
 	}
 
 	public override void OnClientDisconnect(ClientDisconnectedEvent args) {
-		args.Controller?.GetHeroPawn()?.Remove();
+		var controller = args.Controller;
+		if (controller == null) return;
+
+		controller.GetHeroPawn()?.Remove();
+		controller.Remove();
 	}
 
 	public override HookResult OnTakeDamage(TakeDamageEvent args) {
@@ -257,15 +364,48 @@ public class DeathmatchPlugin : DeadworksPluginBase {
 		if (args.CurrencyType == ECurrencyType.EGold) {
 			if (args.Source == ECurrencySource.EStartingAmount) {
 				var controller = args.Pawn.Controller;
+				int gold = 50_000;
 				if (controller != null && _pendingSwap.TryGet(controller, out var state))
-					args.Pawn.ModifyCurrency(ECurrencyType.EGold, state.Gold, ECurrencySource.ECheats);
-				else
-					args.Pawn.ModifyCurrency(ECurrencyType.EGold, 15_000, ECurrencySource.ECheats);
+					gold = state.Gold;
+
+				// Set level + gold atomically via schema writes to avoid the
+				// step-by-step level-up in ModifyCurrency that triggers
+				// client-side "LevelChanged" callbacks and boon UI per level.
+				args.Pawn.Level = 36;
+				args.Pawn.SetCurrency(ECurrencyType.EGold, gold);
+
+				// Run a zero-amount ModifyCurrency to trigger internal stat
+				// recalculation (health/damage scaling) without changing gold.
+				args.Pawn.ModifyCurrency(ECurrencyType.EGold, 0, ECurrencySource.ECheats, silent: true);
 				return HookResult.Stop;
 			}
 			if (args.Source != ECurrencySource.ECheats && args.Source != ECurrencySource.EItemPurchase && args.Source != ECurrencySource.EItemSale)
 				return HookResult.Stop;
 		}
+		return HookResult.Continue;
+	}
+
+	[NetMessageHandler]
+	public HookResult OnCurrencyChangedOutgoing(OutgoingMessageContext<CCitadelUserMessage_CurrencyChanged> ctx) {
+		if (ctx.Message.CurrencySource == (int)ECurrencySource.ECheats)
+			return HookResult.Stop;
+		return HookResult.Continue;
+	}
+
+	[NetMessageHandler]
+	public HookResult OnFlexSlotOutgoing(OutgoingMessageContext<CCitadelUserMsg_FlexSlotUnlocked> ctx) {
+		Console.WriteLine($"[DM] Suppressed FlexSlotUnlocked: team={ctx.Message.TeamNumber} slot={ctx.Message.FlexslotUnlocked}");
+		return HookResult.Stop;
+	}
+
+	[NetMessageHandler]
+	public HookResult OnHudAnnouncementOutgoing(OutgoingMessageContext<CCitadelUserMsg_HudGameAnnouncement> ctx) {
+		// Block game-generated announcements (boons etc) but allow our own
+		var title = ctx.Message.TitleLocstring;
+		Console.WriteLine($"[DM] HudAnnouncement: title={title} desc={ctx.Message.DescriptionLocstring}");
+		// Our own announcements contain hero names like "hero_" — let those through
+		if (!string.IsNullOrEmpty(title) && !title.Contains("wins"))
+			return HookResult.Stop;
 		return HookResult.Continue;
 	}
 
