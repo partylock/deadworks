@@ -432,40 +432,6 @@ public class DeathmatchPlugin : DeadworksPluginBase {
 		return HookResult.Continue;
 	}
 
-	private bool _rebroadcasting;
-
-	[NetMessageHandler]
-	public HookResult OnChatMsgOutgoing(OutgoingMessageContext<CCitadelUserMsg_ChatMsg> ctx) {
-		if (_rebroadcasting) return HookResult.Continue;
-
-		var senderSlot = ctx.Message.PlayerSlot;
-		if (senderSlot < 0) return HookResult.Continue;
-
-		var text = ctx.Message.Text;
-		var allChat = ctx.Message.AllChat;
-		var laneColor = ctx.Message.LaneColor;
-		var originalMask = ctx.Recipients.Mask;
-		var senderName = CBaseEntity.FromIndex<CCitadelPlayerController>(senderSlot)?.PlayerName ?? $"Player {senderSlot}";
-
-		_rebroadcasting = true;
-		try {
-			for (int slot = 0; slot < 64; slot++) {
-				if ((originalMask & (1UL << slot)) == 0) continue;
-				var msg = new CCitadelUserMsg_ChatMsg {
-					PlayerSlot = slot,
-					Text = slot == senderSlot ? text : $"[{senderName}]: {text}",
-					AllChat = allChat,
-					LaneColor = laneColor
-				};
-				NetMessages.Send(msg, RecipientFilter.Single(slot));
-			}
-		} finally {
-			_rebroadcasting = false;
-		}
-
-		return HookResult.Stop;
-	}
-
 	public override void OnUnload() {
 		_swapTimer?.Cancel();
 		Console.WriteLine("Deathmatch unloaded!");
