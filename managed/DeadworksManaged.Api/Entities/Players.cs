@@ -5,10 +5,36 @@ public static class Players {
 	/// <summary>Maximum number of player slots on the server.</summary>
 	public const int MaxSlot = 31;
 
-	/// <summary>Returns all currently connected player controllers.</summary>
+	private static readonly bool[] _connected = new bool[MaxSlot];
+
+	/// <summary>Mark a slot as fully connected. Called from EntryPoint on ClientFullConnect.</summary>
+	internal static void SetConnected(int slot, bool connected) {
+		if ((uint)slot < MaxSlot)
+			_connected[slot] = connected;
+	}
+
+	/// <summary>Reset all connection state. Called on map change / server startup.</summary>
+	internal static void ResetAll() => Array.Clear(_connected);
+
+	/// <summary>Returns whether the given slot is marked as fully connected.</summary>
+	public static bool IsConnected(int slot) => (uint)slot < MaxSlot && _connected[slot];
+
+	/// <summary>Returns all player controllers that exist in the entity system.</summary>
+	public static unsafe IEnumerable<CCitadelPlayerController> GetAllControllers() {
+		var list = new List<CCitadelPlayerController>();
+		for (int i = 0; i < MaxSlot; i++) {
+			var ptr = NativeInterop.GetPlayerController(i);
+			if (ptr != null)
+				list.Add(new CCitadelPlayerController((nint)ptr));
+		}
+		return list;
+	}
+
+	/// <summary>Returns all player controllers for fully connected players.</summary>
 	public static unsafe IEnumerable<CCitadelPlayerController> GetAll() {
 		var list = new List<CCitadelPlayerController>();
 		for (int i = 0; i < MaxSlot; i++) {
+			if (!_connected[i]) continue;
 			var ptr = NativeInterop.GetPlayerController(i);
 			if (ptr != null)
 				list.Add(new CCitadelPlayerController((nint)ptr));
@@ -20,6 +46,7 @@ public static class Players {
 	public static unsafe IEnumerable<CCitadelPlayerPawn> GetAllPawns() {
 		var list = new List<CCitadelPlayerPawn>();
 		for (int i = 0; i < MaxSlot; i++) {
+			if (!_connected[i]) continue;
 			var ptr = NativeInterop.GetPlayerController(i);
 			if (ptr == null) continue;
 			var pawn = NativeInterop.GetHeroPawn(ptr);

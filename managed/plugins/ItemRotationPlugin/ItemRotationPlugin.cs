@@ -329,7 +329,7 @@ public class ItemRotationPlugin : DeadworksPluginBase
 	private static List<int> GetConnectedPlayers()
 	{
 		var players = new List<int>();
-		for (int i = 0; i < Players.MaxSlots; i++)
+		for (int i = 0; i < Players.MaxSlot; i++)
 		{
 			var ctrl = Players.FromSlot(i);
 			if (ctrl?.GetHeroPawn() != null)

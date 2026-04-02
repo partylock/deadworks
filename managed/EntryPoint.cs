@@ -36,6 +36,7 @@ public static class EntryPoint
     [UnmanagedCallersOnly]
     public static unsafe void OnStartupServer(byte* mapNamePtr)
     {
+        Players.ResetAll();
         Server.MapName = Marshal.PtrToStringUTF8((nint)mapNamePtr) ?? "";
         PluginLoader.DispatchStartupServer();
     }
@@ -154,6 +155,20 @@ public static class EntryPoint
     }
 
     [UnmanagedCallersOnly]
+    public static unsafe byte OnClientConnect(int slot, char* name, ulong xuid, char* ipAddress)
+    {
+        var args = new ClientConnectEvent
+        {
+            Slot = slot,
+            Name = new string(name),
+            SteamId = xuid,
+            IpAddress = new string(ipAddress)
+        };
+
+        return PluginLoader.DispatchClientConnect(args) ? (byte)1 : (byte)0;
+    }
+
+    [UnmanagedCallersOnly]
     public static unsafe void OnClientPutInServer(int slot, char* name, ulong xuid, byte isBot)
     {
         var args = new ClientPutInServerEvent
@@ -170,6 +185,7 @@ public static class EntryPoint
     [UnmanagedCallersOnly]
     public static void OnClientFullConnect(int slot)
     {
+        Players.SetConnected(slot, true);
         var args = new ClientFullConnectEvent { Slot = slot };
         PluginLoader.DispatchClientFullConnect(args);
     }
@@ -179,6 +195,7 @@ public static class EntryPoint
     {
         var args = new ClientDisconnectedEvent { Slot = slot, Reason = reason };
         PluginLoader.DispatchClientDisconnect(args);
+        Players.SetConnected(slot, false);
     }
 
     [UnmanagedCallersOnly]
