@@ -12,10 +12,13 @@ void Source2GameClientsHook::Hook_ClientPutInServer(CPlayerSlot slot, const char
 
 bool Source2GameClientsHook::Hook_ClientConnect(CPlayerSlot slot, const char *pszName, uint64 xuid, const char *pszNetworkID, bool unk1, CBufferString *pRejectReason) {
     bool result = g_Source2GameClients_ClientConnect.thiscall<bool>(this, slot, pszName, xuid, pszNetworkID, unk1, pRejectReason);
+    if (!result)
+        return false; // engine already rejected
 
-    g_Deadworks.On_ISource2GameClients_ClientConnect(slot, pszName, xuid, pszNetworkID, unk1, pRejectReason);
+    if (!g_Deadworks.On_ISource2GameClients_ClientConnect(slot, pszName, xuid, pszNetworkID, unk1, pRejectReason))
+        return false; // managed rejected (ban, etc.)
 
-    return result;
+    return true;
 }
 
 void Source2GameClientsHook::Hook_ClientDisconnect(CPlayerSlot slot, ENetworkDisconnectionReason reason, const char *pszName, uint64 xuid, const char *pszNetworkID) {

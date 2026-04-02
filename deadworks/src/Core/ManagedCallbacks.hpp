@@ -18,6 +18,7 @@ struct ManagedCallbacks {
     using OnGameFrameFn = void(CORECLR_DELEGATE_CALLTYPE *)(uint8_t simulating, uint8_t firstTick, uint8_t lastTick);
     using OnNetMessageOutgoingFn = int(CORECLR_DELEGATE_CALLTYPE *)(int msgId, const uint8_t *protoBytes, int protoLen, uint64_t recipientMask, uint8_t *outBytes, int *outLen, uint64_t *outRecipientMask);
     using OnNetMessageIncomingFn = int(CORECLR_DELEGATE_CALLTYPE *)(int senderSlot, int msgId, const uint8_t *protoBytes, int protoLen);
+    using OnClientConnectFn = uint8_t(CORECLR_DELEGATE_CALLTYPE *)(int slot, const char16_t *name, uint64_t xuid, const char16_t *ipAddress);
     using OnClientPutInServerFn = void(CORECLR_DELEGATE_CALLTYPE *)(int slot, const char16_t *name, uint64_t xuid, uint8_t isBot);
     using OnClientFullConnectFn = void(CORECLR_DELEGATE_CALLTYPE *)(int slot);
     using OnClientDisconnectFn = void(CORECLR_DELEGATE_CALLTYPE *)(int slot, int reason);
@@ -42,6 +43,7 @@ struct ManagedCallbacks {
     OnGameFrameFn onGameFrame = nullptr;
     OnNetMessageOutgoingFn onNetMessageOutgoing = nullptr;
     OnNetMessageIncomingFn onNetMessageIncoming = nullptr;
+    OnClientConnectFn onClientConnect = nullptr;
     OnClientPutInServerFn onClientPutInServer = nullptr;
     OnClientFullConnectFn onClientFullConnect = nullptr;
     OnClientDisconnectFn onClientDisconnect = nullptr;

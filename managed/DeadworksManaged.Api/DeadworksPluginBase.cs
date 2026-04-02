@@ -19,6 +19,7 @@ public abstract class DeadworksPluginBase : IDeadworksPlugin {
 	public virtual HookResult OnModifyCurrency(ModifyCurrencyEvent args) => HookResult.Continue;
 	public virtual HookResult OnChatMessage(ChatMessage message) => HookResult.Continue;
 	public virtual HookResult OnClientConCommand(ClientConCommandEvent args) => HookResult.Continue;
+	public virtual bool OnClientConnect(ClientConnectEvent args) => true;
 	public virtual void OnClientPutInServer(ClientPutInServerEvent args) { }
 	public virtual void OnClientFullConnect(ClientFullConnectEvent args) { }
 	public virtual void OnClientDisconnect(ClientDisconnectedEvent args) { }

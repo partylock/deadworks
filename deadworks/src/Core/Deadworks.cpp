@@ -429,8 +429,37 @@ void Deadworks::On_ISource2GameClients_ClientPutInServer(CPlayerSlot slot, const
     }
 }
 
-void Deadworks::On_ISource2GameClients_ClientConnect(CPlayerSlot slot, const char *pszName, uint64 xuid, const char *pszNetworkID, bool unk1, CBufferString *pRejectReason) {
+bool Deadworks::On_ISource2GameClients_ClientConnect(CPlayerSlot slot, const char *pszName, uint64 xuid, const char *pszNetworkID, bool unk1, CBufferString *pRejectReason) {
     m_clientFullyConnected[slot.Get()] = false;
+
+    if (m_managed.onClientConnect) {
+        // Convert name to UTF-16
+        int nameLen = MultiByteToWideChar(CP_UTF8, 0, pszName, -1, nullptr, 0);
+        std::wstring wname(nameLen - 1, L'\0');
+        MultiByteToWideChar(CP_UTF8, 0, pszName, -1, wname.data(), nameLen);
+
+        // Strip port from networkID (format is "ip:port")
+        std::string ip(pszNetworkID ? pszNetworkID : "");
+        auto colon = ip.find(':');
+        if (colon != std::string::npos)
+            ip.resize(colon);
+
+        // Convert IP to UTF-16
+        int ipLen = MultiByteToWideChar(CP_UTF8, 0, ip.c_str(), -1, nullptr, 0);
+        std::wstring wip(ipLen - 1, L'\0');
+        MultiByteToWideChar(CP_UTF8, 0, ip.c_str(), -1, wip.data(), ipLen);
+
+        uint8_t allowed = m_managed.onClientConnect(
+            slot.Get(),
+            reinterpret_cast<const char16_t *>(wname.c_str()),
+            xuid,
+            reinterpret_cast<const char16_t *>(wip.c_str()));
+
+        if (!allowed)
+            return false;
+    }
+
+    return true;
 }
 
 void Deadworks::On_ISource2GameClients_ClientDisconnect(CPlayerSlot slot, ENetworkDisconnectionReason reason, const char *pszName, uint64 xuid, const char *pszNetworkID) {

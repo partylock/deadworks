@@ -57,6 +57,7 @@ void deadworks::InitializeManagedCallbacks(DotNetHost &host, ManagedCallbacks &m
     BindCallback(host, assemblyPath, managed.onGameFrame, L"OnGameFrame");
     BindCallback(host, assemblyPath, managed.onNetMessageOutgoing, L"OnNetMessageOutgoing");
     BindCallback(host, assemblyPath, managed.onNetMessageIncoming, L"OnNetMessageIncoming");
+    BindCallback(host, assemblyPath, managed.onClientConnect, L"OnClientConnect");
     BindCallback(host, assemblyPath, managed.onClientPutInServer, L"OnClientPutInServer");
     BindCallback(host, assemblyPath, managed.onClientFullConnect, L"OnClientFullConnect");
     BindCallback(host, assemblyPath, managed.onClientDisconnect, L"OnClientDisconnect");

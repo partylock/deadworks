@@ -404,6 +404,25 @@ internal static partial class PluginLoader
         DispatchToPlugins(p => p.OnGameFrame(simulating, firstTick, lastTick), nameof(IDeadworksPlugin.OnGameFrame));
     }
 
+    public static bool DispatchClientConnect(ClientConnectEvent args)
+    {
+        var snapshot = _pluginSnapshot;
+        bool allowed = true;
+        foreach (var plugin in snapshot)
+        {
+            try
+            {
+                if (!plugin.OnClientConnect(args))
+                    allowed = false;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[PluginLoader] {plugin.Name}.OnClientConnect threw: {ex.Message}");
+            }
+        }
+        return allowed;
+    }
+
     public static void DispatchClientPutInServer(ClientPutInServerEvent args)
         => DispatchToPlugins(p => p.OnClientPutInServer(args), nameof(IDeadworksPlugin.OnClientPutInServer));
 

@@ -58,6 +58,12 @@ public interface IDeadworksPlugin {
 	HookResult OnClientConCommand(ClientConCommandEvent args) => HookResult.Continue;
 
 	/// <summary>
+	/// Called when a client is connecting. Return false to reject the connection.
+	/// All plugins see the event regardless of any individual result.
+	/// </summary>
+	bool OnClientConnect(ClientConnectEvent args) => true;
+
+	/// <summary>
 	/// Called when a client is put into the server (initial connection).
 	/// </summary>
 	void OnClientPutInServer(ClientPutInServerEvent args) { }
