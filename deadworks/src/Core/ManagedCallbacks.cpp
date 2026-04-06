@@ -48,7 +48,6 @@ void deadworks::InitializeManagedCallbacks(DotNetHost &host, ManagedCallbacks &m
     initialize(&callbacks);
     g_Log->Info(".NET managed code invoked successfully");
 
-    BindCallback(host, assemblyPath, managed.onChatMessage, L"OnChatMessage");
     BindCallback(host, assemblyPath, managed.onStartupServer, L"OnStartupServer");
     BindCallback(host, assemblyPath, managed.onTakeDamageOld, L"OnTakeDamageOld");
     BindCallback(host, assemblyPath, managed.onModifyCurrency, L"OnModifyCurrency");

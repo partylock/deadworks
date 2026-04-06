@@ -126,7 +126,7 @@ internal static class ConCommandManager
         }
     }
 
-    private static void RegisterBuiltInCommand(string name, string description, bool serverOnly, Action<ConCommandContext> handler)
+    internal static void RegisterBuiltInCommand(string name, string description, bool serverOnly, Action<ConCommandContext> handler)
     {
         Action<ConCommandContext> wrapped = serverOnly
             ? ctx =>

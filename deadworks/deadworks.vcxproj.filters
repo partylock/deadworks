@@ -33,18 +33,6 @@
     <ClCompile Include="src\Core\Hooks\CoreHooks.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\protobuf\base_gcmessages.pb.cc">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\protobuf\citadel_clientmessages.pb.cc">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\protobuf\citadel_gcmessages_common.pb.cc">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\protobuf\gcsdk_gcmessages.pb.cc">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\protobuf\netmessages.pb.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -52,18 +40,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\protobuf\networkbasetypes.pb.cc">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\protobuf\steammessages.pb.cc">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\protobuf\steammessages_steamlearn.steamworkssdk.pb.cc">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\protobuf\steammessages_unified_base.steamworkssdk.pb.cc">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\protobuf\valveextensions.pb.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Core\Hooks\Source2GameClients.cpp">
@@ -84,9 +60,6 @@
     <ClCompile Include="src\Core\Hooks\GameEvents.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\protobuf\networksystem_protomessages.pb.cc">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\protobuf\source2_steam_stats.pb.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -103,12 +76,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\sourcesdk\entity2\entityidentity.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\protobuf\citadel_usermessages.pb.cc">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\protobuf\gameevents.pb.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\sourcesdk\tier1\convar.cpp">
@@ -206,18 +173,6 @@
     <ClInclude Include="src\Core\Hooks\CoreHooks.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\protobuf\base_gcmessages.pb.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\protobuf\citadel_clientmessages.pb.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\protobuf\citadel_gcmessages_common.pb.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\protobuf\gcsdk_gcmessages.pb.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\protobuf\netmessages.pb.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -225,18 +180,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\protobuf\networkbasetypes.pb.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\protobuf\steammessages.pb.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\protobuf\steammessages_steamlearn.steamworkssdk.pb.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\protobuf\steammessages_unified_base.steamworkssdk.pb.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\protobuf\valveextensions.pb.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\Core\Hooks\Source2GameClients.hpp">
@@ -255,9 +198,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\Core\Hooks\GameEvents.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\protobuf\networksystem_protomessages.pb.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\protobuf\source2_steam_stats.pb.h">
@@ -285,12 +225,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\SDK\CCitadelPlayerPawn.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\protobuf\citadel_usermessages.pb.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\protobuf\gameevents.pb.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\Utils\String.hpp">

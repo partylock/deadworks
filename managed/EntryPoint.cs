@@ -20,20 +20,6 @@ public static class EntryPoint
     }
 
     [UnmanagedCallersOnly]
-    public static unsafe byte OnChatMessage(int senderSlot, char* chatText, byte allChat, int laneColor)
-    {
-        var message = new ChatMessage
-        {
-            SenderSlot = senderSlot,
-            ChatText = new string(chatText),
-            AllChat = allChat != 0,
-            LaneColor = (LaneColor)laneColor
-        };
-
-        return PluginLoader.DispatchChatMessage(message) >= HookResult.Stop ? (byte)1 : (byte)0;
-    }
-
-    [UnmanagedCallersOnly]
     public static unsafe void OnStartupServer(byte* mapNamePtr)
     {
         Players.ResetAll();
@@ -151,7 +137,30 @@ public static class EntryPoint
     public static unsafe int OnNetMessageIncoming(int senderSlot, int msgId, byte* protoBytes, int protoLen)
     {
         var span = new ReadOnlySpan<byte>(protoBytes, protoLen);
-        return (int)PluginLoader.DispatchNetMessageIncoming(senderSlot, msgId, span);
+        var result = PluginLoader.DispatchNetMessageIncoming(senderSlot, msgId, span);
+        if (result >= HookResult.Stop)
+            return (int)result;
+
+        // Chat message dispatch
+        if (msgId == (int)ECitadelClientMessages.CitadelCmChatMsg)
+        {
+            var chatMsg = CCitadelClientMsg_ChatMsg.Parser.ParseFrom(span);
+            if (chatMsg.HasChatText)
+            {
+                var message = new ChatMessage
+                {
+                    SenderSlot = senderSlot,
+                    ChatText = chatMsg.ChatText,
+                    AllChat = chatMsg.HasAllChat && chatMsg.AllChat,
+                    LaneColor = chatMsg.HasLaneColor ? (LaneColor)(int)chatMsg.LaneColor : LaneColor.Invalid
+                };
+
+                if (PluginLoader.DispatchChatMessage(message) >= HookResult.Stop)
+                    return (int)HookResult.Stop;
+            }
+        }
+
+        return (int)result;
     }
 
     [UnmanagedCallersOnly]

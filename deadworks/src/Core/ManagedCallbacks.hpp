@@ -8,7 +8,6 @@ namespace deadworks {
 class DotNetHost;
 
 struct ManagedCallbacks {
-    using OnChatMessageFn = bool(CORECLR_DELEGATE_CALLTYPE *)(int senderSlot, const char16_t *chatText, uint8_t allChat, int laneColor);
     using OnStartupServerFn = void(CORECLR_DELEGATE_CALLTYPE *)(const char *mapName);
     using OnTakeDamageOldFn = bool(CORECLR_DELEGATE_CALLTYPE *)(void *entity, void *info, void *result);
     using OnModifyCurrencyFn = bool(CORECLR_DELEGATE_CALLTYPE *)(void *pawn, uint32_t nCurrencyType, int32_t nAmount,
@@ -35,7 +34,6 @@ struct ManagedCallbacks {
     using OnAbilityAttemptFn = uint64_t(CORECLR_DELEGATE_CALLTYPE *)(int playerSlot, void *pawnEntity, uint64_t heldButtons, uint64_t changedButtons, uint64_t scrollButtons, uint64_t *outForcedButtons);
     using OnAddModifierFn = int(CORECLR_DELEGATE_CALLTYPE *)(void *modifierProp, void **pCaster, uint32_t *pHAbility, int32_t *pITeam, void *vdata, void *params, void *kv);
 
-    OnChatMessageFn onChatMessage = nullptr;
     OnStartupServerFn onStartupServer = nullptr;
     OnTakeDamageOldFn onTakeDamageOld = nullptr;
     OnModifyCurrencyFn onModifyCurrency = nullptr;

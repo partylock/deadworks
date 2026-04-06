@@ -35,8 +35,6 @@
 #include <igameevents.h>
 #include <igameeventsystem.h>
 
-#include <citadel_clientmessages.pb.h>
-#include <citadel_usermessages.pb.h>
 #include <icvar.h>
 #include <entity2/entitysystem.h>
 
@@ -468,7 +466,6 @@ void Deadworks::On_ISource2GameClients_ClientDisconnect(CPlayerSlot slot, ENetwo
         m_managed.onClientDisconnect(slot.Get(), static_cast<int>(reason));
 }
 
-using CCitadelClientMsg_ChatMsg_t = CNetMessagePB<ECitadelClientMessages::CITADEL_CM_ChatMsg, CCitadelClientMsg_ChatMsg, SG_USERMSG, BUF_RELIABLE, true>;
 std::optional<bool> Deadworks::OnPre_CServerSideClientBase_FilterMessage(INetworkMessageProcessingPreFilter *thisptr, const CNetMessage *pData) {
     auto *client = static_cast<CServerSideClientBase *>(thisptr);
     auto *info = pData->GetSerializerPB()->GetNetMessageInfo();
@@ -487,28 +484,6 @@ std::optional<bool> Deadworks::OnPre_CServerSideClientBase_FilterMessage(INetwor
                     if (result >= 1) // Stop/block
                         return true;
                 }
-            }
-        }
-    }
-
-    // Legacy chat message handler (existing behavior)
-    if (info->m_MessageId == ECitadelClientMessages::CITADEL_CM_ChatMsg) {
-        auto *msg = pData->As<CCitadelClientMsg_ChatMsg_t>();
-        if (msg->has_chat_text()) {
-            if (m_managed.onChatMessage) {
-                const auto &utf8Text = msg->chat_text();
-                int wlen = MultiByteToWideChar(CP_UTF8, 0, utf8Text.data(), static_cast<int>(utf8Text.size()), nullptr, 0);
-                std::wstring wtext(wlen, L'\0');
-                MultiByteToWideChar(CP_UTF8, 0, utf8Text.data(), static_cast<int>(utf8Text.size()), wtext.data(), wlen);
-
-                bool blocked = m_managed.onChatMessage(
-                    client->GetPlayerSlot().Get(),
-                    reinterpret_cast<const char16_t *>(wtext.c_str()),
-                    msg->has_all_chat() && msg->all_chat() ? 1 : 0,
-                    msg->has_lane_color() ? static_cast<int>(msg->lane_color()) : 0);
-
-                if (blocked)
-                    return true;
             }
         }
     }
