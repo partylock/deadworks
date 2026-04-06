@@ -71,7 +71,10 @@ jobs:
         run: dotnet restore deadworks.slnx
 
       - name: Build native (x64 Release)
-        run: msbuild deadworks.slnx /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /m /verbosity:minimal
+        run: msbuild deadworks/deadworks.vcxproj /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /m /verbosity:minimal
+
+      - name: Build managed
+        run: dotnet build managed/DeadworksManaged.csproj -c Release -o x64/Release/managed/
 
       - name: Stage artifact
         shell: pwsh
