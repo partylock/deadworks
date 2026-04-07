@@ -45,7 +45,7 @@ public:
 
 #define DECLARE_SCHEMA_CLASS(className) DECLARE_SCHEMA_CLASS_BASE(className, 0)
 
-// Use when the C++ class name differs from the engine schema name —
+// Use when the C++ class name differs from the engine schema name -
 // e.g., an accessor overlay class that queries schema as a different type.
 #define DECLARE_SCHEMA_CLASS_ALIAS(cppClass, schemaName)                          \
 public:                                                                           \

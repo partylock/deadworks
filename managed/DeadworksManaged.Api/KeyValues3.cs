@@ -5,7 +5,7 @@ namespace DeadworksManaged.Api;
 /// <summary>
 /// Wraps a native KeyValues3 handle. Create with <c>new KeyValues3()</c>,
 /// set typed members, pass to <see cref="CBaseEntity.AddModifier"/>, then dispose.
-/// Must be disposed explicitly — no finalizer (unsafe to call native from GC thread).
+/// Must be disposed explicitly - no finalizer (unsafe to call native from GC thread).
 /// </summary>
 public sealed unsafe class KeyValues3 : IDisposable
 {

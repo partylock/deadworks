@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 
 namespace DeadworksManaged.Api;
 
-/// <summary>Wraps the point_worldtext entity — a world-space text panel rendered in 3D.</summary>
+/// <summary>Wraps the point_worldtext entity - a world-space text panel rendered in 3D.</summary>
 [NativeClass("CPointWorldText")]
 public sealed unsafe class CPointWorldText : CBaseEntity {
 	internal CPointWorldText(nint handle) : base(handle) { }

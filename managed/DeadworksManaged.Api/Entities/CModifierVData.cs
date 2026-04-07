@@ -1,6 +1,6 @@
 namespace DeadworksManaged.Api;
 
-/// <summary>Wraps a native CModifierVData instance — base VData for all modifier types.</summary>
+/// <summary>Wraps a native CModifierVData instance - base VData for all modifier types.</summary>
 public unsafe class CModifierVData : NativeEntity {
 	internal CModifierVData(nint handle) : base(handle) { }
 

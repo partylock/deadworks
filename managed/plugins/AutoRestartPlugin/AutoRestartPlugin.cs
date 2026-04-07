@@ -105,7 +105,7 @@ public class AutoRestartPlugin : DeadworksPluginBase
 	private void DoRestart()
 	{
 		var map = Server.MapName;
-		Console.WriteLine($"[AutoRestart] Restarting — changelevel {map}");
+		Console.WriteLine($"[AutoRestart] Restarting - changelevel {map}");
 		Server.ExecuteCommand($"changelevel {map}");
 	}
 }

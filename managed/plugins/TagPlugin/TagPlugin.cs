@@ -140,7 +140,7 @@ public class TagPlugin : DeadworksPluginBase {
 	// --- Block Normal Team Choosing ---
 
 	public override HookResult OnClientConCommand(ClientConCommandEvent e) {
-		// Block hero selection entirely — heroes are assigned by role
+		// Block hero selection entirely - heroes are assigned by role
 		if (e.Command == "selecthero") {
 			SendChatToPlayer(e.Controller!, "[Tag] Heroes are assigned by role (Warden/Holiday).");
 			return HookResult.Stop;
@@ -251,7 +251,7 @@ public class TagPlugin : DeadworksPluginBase {
 	private void SaveConfig() {
 		var configPath = this.GetConfigPath();
 		if (configPath == null) {
-			// Config file doesn't exist yet — derive path from convention
+			// Config file doesn't exist yet - derive path from convention
 			var dir = Path.Combine(Path.GetDirectoryName(GetType().Assembly.Location)!, "..", "configs", "TagPlugin");
 			Directory.CreateDirectory(dir);
 			configPath = Path.Combine(dir, "TagPlugin.jsonc");

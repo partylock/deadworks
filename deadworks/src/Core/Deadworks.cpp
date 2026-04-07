@@ -61,7 +61,7 @@ static bool HookInline(safetyhook::InlineHook &hook, const char *name, Fn detour
         if (required)
             g_Log->Error("{} signature not found", name);
         else
-            g_Log->Warning("{} signature not found — hook unavailable", name);
+            g_Log->Warning("{} signature not found - hook unavailable", name);
         return false;
     }
     hook = safetyhook::create_inline(opt.value(), detour);
@@ -153,7 +153,7 @@ void Deadworks::PostInit() {
                "CGCClientSystem::OnServerVersionCheck",
                &hooks::Hook_CGCClientSystem_OnServerVersionCheck, true);
 
-    // VMT hooks — these use virtual indices, not signatures
+    // VMT hooks - these use virtual indices, not signatures
     auto &mem = MemoryDataLoader::Get();
 
     hooks::g_Source2ServerVmt = safetyhook::create_vmt(g_pSource2Server);
@@ -217,7 +217,7 @@ void Deadworks::PostInit() {
     // Touch hooks (StartTouch / EndTouch) are initialized lazily in OnEntityCreated
     // because we need an entity vtable to resolve the virtual function addresses.
 
-    // Optional hooks — features degrade gracefully if signatures are missing
+    // Optional hooks - features degrade gracefully if signatures are missing
     HookInline(hooks::g_CEntityInstance_AcceptInput,
                "CEntityInstance::AcceptInput",
                &hooks::Hook_CEntityInstance_AcceptInput);
@@ -373,9 +373,9 @@ bool Deadworks::OnPre_SendNetMessage(CServerSideClientBase *client, const CNetMe
         return false;
 
     // CNetMessagePB inherits CNetMessage first, then PROTO_TYPE (multiple inheritance).
-    // SDK's As<T>() does static_cast<T*>(this) from CNetMessage* — valid downcast.
+    // SDK's As<T>() does static_cast<T*>(this) from CNetMessage* - valid downcast.
     // const_cast is necessary because the SDK's As<T>() is non-const and we need to mutate.
-    // Use AsMessageLite + serialize/deserialize — we can't use generated C++ protobuf
+    // Use AsMessageLite + serialize/deserialize - we can't use generated C++ protobuf
     // methods because our compiled protobuf layout doesn't match Valve's runtime.
     auto *pb = const_cast<google::protobuf::MessageLite *>(pData->AsMessageLite());
     if (!pb)
@@ -445,14 +445,14 @@ void Deadworks::OnEntityCreated(CEntityInstance *pEntity) {
             hooks::g_CBaseEntity_StartTouch = safetyhook::create_inline(vtable[*startTouchIdx], &hooks::Hook_CBaseEntity_StartTouch);
             g_Log->Info("Hooked CBaseEntity::StartTouch (vtable index {})", *startTouchIdx);
         } else {
-            g_Log->Warning("CBaseEntity::StartTouch virtual index not configured — touch events unavailable");
+            g_Log->Warning("CBaseEntity::StartTouch virtual index not configured - touch events unavailable");
         }
 
         if (endTouchIdx && vtable[*endTouchIdx]) {
             hooks::g_CBaseEntity_EndTouch = safetyhook::create_inline(vtable[*endTouchIdx], &hooks::Hook_CBaseEntity_EndTouch);
             g_Log->Info("Hooked CBaseEntity::EndTouch (vtable index {})", *endTouchIdx);
         } else {
-            g_Log->Warning("CBaseEntity::EndTouch virtual index not configured — touch events unavailable");
+            g_Log->Warning("CBaseEntity::EndTouch virtual index not configured - touch events unavailable");
         }
     }
 

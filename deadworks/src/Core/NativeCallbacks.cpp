@@ -90,7 +90,7 @@ public:
 using AcceptInputFn = bool(__thiscall *)(void *thisptr, const char *pInputName, CEntityInstance *pActivator, CEntityInstance *pCaller, variant_t *pValue, int nOutputID, void *);
 
 // ---------------------------------------------------------------------------
-// Native callback implementations — Core / Entity / Schema / ConVar / Events
+// Native callback implementations - Core / Entity / Schema / ConVar / Events
 // ---------------------------------------------------------------------------
 
 static void __cdecl ManagedLogCallback(const char16_t *message) {
@@ -679,7 +679,7 @@ static uint64_t __cdecl NativeCreateConVar(const char *name, const char *default
 }
 
 // ---------------------------------------------------------------------------
-// Index-based ConVar / ConCommand access — C# drives the iteration
+// Index-based ConVar / ConCommand access - C# drives the iteration
 // ---------------------------------------------------------------------------
 
 struct ConVarInfoResult {
@@ -714,7 +714,7 @@ static uint8_t __cdecl NativeGetConVarAt(uint16_t index, ConVarInfoResult *resul
         "string", "color", "vector2", "vector3", "vector4", "qangle"
     };
 
-    // Stable pointers — live in engine memory
+    // Stable pointers - live in engine memory
     result->name = cvRef.GetName();
     result->description = cvRef.HasHelpText() ? cvRef.GetHelpText() : "";
     result->flags = cvRef.GetFlags();
@@ -723,7 +723,7 @@ static uint8_t __cdecl NativeGetConVarAt(uint16_t index, ConVarInfoResult *resul
     result->typeName = (typeIdx >= 0 && typeIdx < static_cast<int16_t>(std::size(s_TypeNames)))
         ? s_TypeNames[typeIdx] : "unknown";
 
-    // Stringified values — use static buffers (game thread only)
+    // Stringified values - use static buffers (game thread only)
     static CBufferStringGrowable<256> s_valueBuf, s_defaultBuf;
     static CBufferStringGrowable<64> s_minBuf, s_maxBuf;
 

@@ -41,7 +41,7 @@ public static unsafe class GlobalVars
 	/// <summary>Absolute time (per frame, not high-precision). Use for render-related timing.</summary>
 	public static float RealTime { get { var p = Get(); return p != null ? *(float*)(p + kRealTime) : 0f; } }
 
-	/// <summary>Absolute frame counter — continues to increase even if game is paused.</summary>
+	/// <summary>Absolute frame counter - continues to increase even if game is paused.</summary>
 	public static int FrameCount { get { var p = Get(); return p != null ? *(int*)(p + kFrameCount) : 0; } }
 
 	/// <summary>Non-paused frame time.</summary>
@@ -59,7 +59,7 @@ public static unsafe class GlobalVars
 	/// <summary>Whether the engine is currently in simulation (not rendering).</summary>
 	public static bool InSimulation { get { var p = Get(); return p != null && *(bool*)(p + kInSimulation); } }
 
-	/// <summary>Simulation tick count — does not increase when game is paused.</summary>
+	/// <summary>Simulation tick count - does not increase when game is paused.</summary>
 	public static int TickCount { get { var p = Get(); return p != null ? *(int*)(p + kTickCount) : 0; } }
 
 	/// <summary>Subtick fraction for the current movement processing.</summary>

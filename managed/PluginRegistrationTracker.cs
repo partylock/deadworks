@@ -4,7 +4,7 @@ namespace DeadworksManaged;
 /// Central index of everything a plugin has registered (commands, convars, chat commands,
 /// event handlers, net message handlers). Each subsystem calls <see cref="Add"/> at
 /// registration time; <see cref="Remove"/> bulk-clears on unload. Dispatch stays in the
-/// owning subsystem — this is metadata only.
+/// owning subsystem - this is metadata only.
 /// </summary>
 internal static class PluginRegistrationTracker
 {

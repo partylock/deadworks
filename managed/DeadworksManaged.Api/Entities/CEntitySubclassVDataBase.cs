@@ -1,6 +1,6 @@
 namespace DeadworksManaged.Api;
 
-/// <summary>Wraps CEntitySubclassVDataBase — the VData subclass pointer stored on an entity, providing its design-time name.</summary>
+/// <summary>Wraps CEntitySubclassVDataBase - the VData subclass pointer stored on an entity, providing its design-time name.</summary>
 public sealed unsafe class CEntitySubclassVDataBase : NativeEntity {
 	internal CEntitySubclassVDataBase(nint handle) : base(handle) { }
 

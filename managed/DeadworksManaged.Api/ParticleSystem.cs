@@ -105,7 +105,7 @@ public sealed unsafe class CParticleSystem : CBaseEntity {
 
 			var particle = new CParticleSystem(baseEntity.Handle);
 
-			// 2. Build CEntityKeyValues — effect_name MUST go through KV so the
+			// 2. Build CEntityKeyValues - effect_name MUST go through KV so the
 			//    engine resolves it to m_iEffectIndex (resource strong handle).
 			//    Raw schema writes to m_iszEffectName bypass resource resolution.
 			var ekv = new CEntityKeyValues();
@@ -134,7 +134,7 @@ public sealed unsafe class CParticleSystem : CBaseEntity {
 			if (_position.HasValue || _angles.HasValue)
 				particle.Teleport(_position, _angles);
 
-			// 5. DispatchSpawn with keyvalues — engine resolves effect_name → m_iEffectIndex
+			// 5. DispatchSpawn with keyvalues - engine resolves effect_name → m_iEffectIndex
 			particle.Spawn(ekv);
 
 			// 6. Explicitly fire Start input to ensure activation

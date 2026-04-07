@@ -18,7 +18,7 @@ public interface ITimer
     IHandle Sequence(Func<IStep, Pace> callback);
 
     /// <summary>
-    /// Defer an action to the next tick. Thread-safe — can be called from any thread.
+    /// Defer an action to the next tick. Thread-safe - can be called from any thread.
     /// </summary>
     void NextTick(Action callback);
 }

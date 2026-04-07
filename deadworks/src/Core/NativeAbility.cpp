@@ -85,7 +85,7 @@ static std::string ExtractParentAbilityName(const char *scopedName) {
     return std::string(scopedName, slash - scopedName);
 }
 
-// Hook for VData lookup — intercepts lookups for our cloned VData entries.
+// Hook for VData lookup - intercepts lookups for our cloned VData entries.
 static __int64 __fastcall Hook_LookupVDataByHash(int typeIndex, int hash) {
     if (hash != 0) {
         auto it = g_clonedVDataMap.find(static_cast<uint32_t>(hash));
@@ -163,7 +163,7 @@ static uint32_t CloneAbilityVDataWithOverrides(
     return cloneHash;
 }
 
-// Hook for the auto-register processor — fixes up m_nAbilitySubclassID and
+// Hook for the auto-register processor - fixes up m_nAbilitySubclassID and
 // temporarily expands the auto-register property list for override entries.
 static __int64 __fastcall Hook_AutoRegisterValues(__int64 *modifierRaw) {
     auto &ov = g_modOverride;
@@ -456,6 +456,6 @@ void deadworks::PopulateAbilityNatives(NativeCallbacks &cb) {
         g_Hook_LookupVDataByHash = safetyhook::create_inline(opt2.value(), &Hook_LookupVDataByHash);
         g_Log->Info("Hooked LookupVDataByHash for per-instance modifier value overrides");
     } else {
-        g_Log->Warning("LookupVDataByHash signature not found — per-instance overrides unavailable");
+        g_Log->Warning("LookupVDataByHash signature not found - per-instance overrides unavailable");
     }
 }

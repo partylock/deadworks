@@ -4,7 +4,7 @@
 #include <tier0/utlstring.h>
 
 // Accessor overlay for CitadelAbilityProperty_t fields via SCHEMA_FIELD.
-// This class has no storage — it's reinterpret_cast'd onto the raw bytes.
+// This class has no storage - it's reinterpret_cast'd onto the raw bytes.
 class CitadelAbilityPropertyAccessor {
     DECLARE_SCHEMA_CLASS_ALIAS(CitadelAbilityPropertyAccessor, CitadelAbilityProperty_t);
     SCHEMA_FIELD(CUtlString, m_strValue);

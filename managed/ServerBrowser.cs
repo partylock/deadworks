@@ -39,7 +39,7 @@ internal static class ServerBrowser
 
         if (_config.Unlisted || Server.HasCommandLineParm("-nomaster"))
         {
-            Console.WriteLine("[ServerBrowser] Server is unlisted — heartbeat disabled.");
+            Console.WriteLine("[ServerBrowser] Server is unlisted - heartbeat disabled.");
             return;
         }
 
@@ -122,7 +122,7 @@ internal static class ServerBrowser
         }
         else
         {
-            // Registration failed — start the heartbeat timer anyway so it retries
+            // Registration failed - start the heartbeat timer anyway so it retries
             Console.WriteLine("[ServerBrowser] Will retry registration on next heartbeat tick.");
             StartHeartbeat();
         }

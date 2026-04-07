@@ -92,7 +92,7 @@ public unsafe class CBasePlayerPawn : CBaseEntity {
 }
 
 /// <summary>
-/// Wraps CModifierProperty — manages modifier state bits on an entity.
+/// Wraps CModifierProperty - manages modifier state bits on an entity.
 /// Uses CNetworkVarChainer to chain network notifications to the owning entity.
 /// </summary>
 public unsafe class CModifierProperty : NativeEntity {
@@ -164,8 +164,8 @@ public unsafe class CModifierProperty : NativeEntity {
 }
 
 /// <summary>
-/// Wraps AbilityResource_t — stamina or ability resource with latch-based networking.
-/// This is an embedded struct, not an entity — setters use raw pointer writes
+/// Wraps AbilityResource_t - stamina or ability resource with latch-based networking.
+/// This is an embedded struct, not an entity - setters use raw pointer writes
 /// since NotifyStateChanged requires the owning entity, not the struct address.
 /// </summary>
 public unsafe class AbilityResource : NativeEntity {
@@ -413,7 +413,7 @@ public sealed unsafe class CCitadelPlayerPawn : CBasePlayerPawn {
 	/// Gives an item to this pawn by internal item name (e.g. "upgrade_sprint_booster").
 	/// <param name="itemName">Internal item name.</param>
 	/// <param name="upgradeTier">Upgrade tier (0-based). Pass -1 for the base version.
-	/// Items with the same name can exist at different upgrade tiers — this controls which version is created.</param>
+	/// Items with the same name can exist at different upgrade tiers - this controls which version is created.</param>
 	/// Returns the new item entity, or null on failure.
 	/// </summary>
 	public CBaseEntity? AddItem(string itemName, int upgradeTier = -1) {
@@ -427,7 +427,7 @@ public sealed unsafe class CCitadelPlayerPawn : CBasePlayerPawn {
 
 	/// <summary>
 	/// Removes an item from this pawn by name, using the ability removal path.
-	/// This bypasses sell checks and does not refund gold — it directly removes the item entity
+	/// This bypasses sell checks and does not refund gold - it directly removes the item entity
 	/// from the ability component, slot table, and network state.
 	/// Returns true on success.
 	/// </summary>
@@ -476,7 +476,7 @@ public sealed unsafe class CCitadelPlayerPawn : CBasePlayerPawn {
 	}
 }
 
-/// <summary>Wraps the networked PlayerDataGlobal_t struct on a player controller — provides read access to stats like kills, gold, level, and damage.</summary>
+/// <summary>Wraps the networked PlayerDataGlobal_t struct on a player controller - provides read access to stats like kills, gold, level, and damage.</summary>
 public unsafe class PlayerDataGlobal : NativeEntity {
 	private static ReadOnlySpan<byte> Class => "PlayerDataGlobal_t"u8;
 

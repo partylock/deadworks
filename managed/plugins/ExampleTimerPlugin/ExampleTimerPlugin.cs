@@ -39,7 +39,7 @@ public class ExampleTimerPlugin : DeadworksPluginBase
 
     public void OnStartupServer()
     {
-        Console.WriteLine("[ExampleTimer] Server starting — scheduling round timers");
+        Console.WriteLine("[ExampleTimer] Server starting - scheduling round timers");
 
         Timer.Every(60.Seconds(), () =>
             Console.WriteLine("[ExampleTimer] 60-second announcement"));

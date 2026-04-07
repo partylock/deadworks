@@ -5,7 +5,7 @@ namespace DeadworksManaged.Api;
 /// <summary>
 /// Wraps a native CEntityKeyValues handle. Create with <c>new CEntityKeyValues()</c>,
 /// set typed members, pass to <see cref="CBaseEntity.Spawn(CEntityKeyValues)"/>.
-/// The engine takes ownership of the underlying allocation — do not dispose manually.
+/// The engine takes ownership of the underlying allocation - do not dispose manually.
 /// </summary>
 public sealed unsafe class CEntityKeyValues
 {

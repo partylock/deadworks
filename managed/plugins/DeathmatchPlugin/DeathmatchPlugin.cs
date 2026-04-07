@@ -64,7 +64,7 @@ public class DeathmatchPlugin : DeadworksPluginBase {
 	}
 
 	private void LoadBundledItemSets() {
-		// Load embedded item sets as defaults — config file entries take priority
+		// Load embedded item sets as defaults - config file entries take priority
 		var asm = Assembly.GetExecutingAssembly();
 		var resourceName = asm.GetManifestResourceNames()
 			.FirstOrDefault(n => n.EndsWith("HeroItemSets.jsonc"));
@@ -288,7 +288,7 @@ public class DeathmatchPlugin : DeadworksPluginBase {
 		var winnerKills = Math.Max(_team2Kills, _team3Kills);
 		var loserKills = Math.Min(_team2Kills, _team3Kills);
 
-		// Find MVP — player with the most kills this round
+		// Find MVP - player with the most kills this round
 		int mvpIdx = -1, mvpKills = 0;
 		foreach (var (idx, kills) in _playerKills) {
 			if (kills > mvpKills) {
@@ -351,7 +351,7 @@ public class DeathmatchPlugin : DeadworksPluginBase {
 		var pawn = args.Userid?.As<CCitadelPlayerPawn>();
 		if (pawn == null) return HookResult.Continue;
 
-		// Swap in progress — skip, the timer in SwapHeroes handles restoration.
+		// Swap in progress - skip, the timer in SwapHeroes handles restoration.
 		var controller = pawn.Controller;
 		if (controller != null && _pendingSwap.Has(controller))
 			return HookResult.Continue;

@@ -40,7 +40,7 @@ constexpr uintptr_t kBGSM_PrecacheCall = 0x394;
 namespace deadworks {
 
 /// Resolve an x86-64 E8 relative CALL instruction at `callAddr` to an absolute target.
-/// E8 encoding: [E8 rel32] — 5 bytes total. Target = callAddr + 5 + rel32.
+/// E8 encoding: [E8 rel32] - 5 bytes total. Target = callAddr + 5 + rel32.
 inline uintptr_t ResolveE8Call(uintptr_t callAddr) {
     int32_t rel = *reinterpret_cast<int32_t *>(callAddr + 1);
     return callAddr + 5 + rel;

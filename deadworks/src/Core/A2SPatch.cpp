@@ -55,7 +55,7 @@ bool Apply() {
     }
 
     if (allOk)
-        g_Log->Info("[A2S] Advertise gate patched — A2S_INFO enabled on game port");
+        g_Log->Info("[A2S] Advertise gate patched - A2S_INFO enabled on game port");
 
     return allOk;
 }

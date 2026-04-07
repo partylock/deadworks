@@ -73,15 +73,15 @@ internal static partial class PluginLoader
     {
         var map = new Dictionary<string, Assembly>(StringComparer.OrdinalIgnoreCase);
 
-        // DeadworksManaged.Api — contains IDeadworksPlugin, shared types, and generated proto classes
+        // DeadworksManaged.Api - contains IDeadworksPlugin, shared types, and generated proto classes
         var apiAsm = typeof(IDeadworksPlugin).Assembly;
         map[apiAsm.GetName().Name!] = apiAsm;
 
-        // DeadworksManaged itself — plugins might reference host utilities
+        // DeadworksManaged itself - plugins might reference host utilities
         var hostAsm = typeof(PluginLoader).Assembly;
         map[hostAsm.GetName().Name!] = hostAsm;
 
-        // Google.Protobuf — shared so plugins use the same protobuf runtime as the host
+        // Google.Protobuf - shared so plugins use the same protobuf runtime as the host
         var protobufAsm = typeof(IMessage).Assembly;
         map[protobufAsm.GetName().Name!] = protobufAsm;
 

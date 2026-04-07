@@ -234,7 +234,7 @@ internal static partial class PluginLoader
 
     private static HookResult InvokeOutgoingHandler(Delegate handler, IMessage message, int msgId, ref ulong recipientMask)
     {
-        // handler is Func<OutgoingMessageContext<T>, HookResult> — invoke via DynamicInvoke
+        // handler is Func<OutgoingMessageContext<T>, HookResult> - invoke via DynamicInvoke
         var handlerType = handler.GetType();
         var genArgs = handlerType.GetGenericArguments();
         if (genArgs.Length < 1) return HookResult.Continue;

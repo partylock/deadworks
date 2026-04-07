@@ -1,6 +1,6 @@
 namespace DeadworksManaged.Api;
 
-/// <summary>Wraps a native CCitadelModifierVData instance — Citadel-specific modifier VData with extended properties.</summary>
+/// <summary>Wraps a native CCitadelModifierVData instance - Citadel-specific modifier VData with extended properties.</summary>
 public unsafe class CCitadelModifierVData : CModifierVData {
 	internal CCitadelModifierVData(nint handle) : base(handle) { }
 

@@ -54,11 +54,11 @@ public:
                                                   void *pSourceAbility, void *pSourceEntity);
     // Game Events
     int OnPre_GameEvent(const char *eventName, void *eventPtr);
-    // Net Messages (outgoing — broadcast via game event system)
+    // Net Messages (outgoing - broadcast via game event system)
     bool OnPre_PostEventAbstract(int msgId, const CNetMessage *pData, uint64 *clientsMask);
-    // Net Messages (outgoing — per-client via SendNetMessage, catches SignonState etc.)
+    // Net Messages (outgoing - per-client via SendNetMessage, catches SignonState etc.)
     bool OnPre_SendNetMessage(CServerSideClientBase *client, const CNetMessage *pData);
-    // ReplyConnection — temporarily inject addons into the server object
+    // ReplyConnection - temporarily inject addons into the server object
     void OnPre_ReplyConnection(void *server, CServerSideClientBase *client);
     void OnPost_ReplyConnection(void *server, CServerSideClientBase *client);
     // Called from NativeSetServerAddons to store the desired value
@@ -79,7 +79,7 @@ public:
     void OnEntityAcceptInput(void *entity, void *activator, void *caller, const char *inputName, const char *value);
     // Usercmds
     void OnPre_ProcessUsercmds(int playerSlot, const uint8_t *batchBytes, int batchLen, int numCmds, bool paused, float margin, uint8_t *outBytes, int *outLen);
-    // Ability think — returns bitmask of buttons to block, outForcedButtons receives bits to force
+    // Ability think - returns bitmask of buttons to block, outForcedButtons receives bits to force
     uint64_t OnPre_AbilityThink(int playerSlot, void *pawnEntity, uint64_t heldButtons, uint64_t changedButtons, uint64_t scrollButtons, uint64_t *outForcedButtons);
     // AddModifier
     bool OnPre_AddModifier(void *modifierProp, CBaseEntity *&pCaster, uint32_t &hAbility, int &iTeam,

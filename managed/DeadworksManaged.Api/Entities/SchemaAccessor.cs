@@ -31,7 +31,7 @@ public sealed unsafe class SchemaAccessor<T> where T : unmanaged {
 			NativeInterop.GetSchemaField(cls, fld, &r);
 			_chainOffset = r.ChainOffset;
 			_networked = r.Networked != 0;
-			_offset = r.Offset; // volatile write last — publishes all fields
+			_offset = r.Offset; // volatile write last - publishes all fields
 		}
 	}
 
