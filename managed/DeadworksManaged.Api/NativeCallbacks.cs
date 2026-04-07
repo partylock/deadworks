@@ -105,4 +105,5 @@ internal struct NativeCallbacks
 	public nint GetConVarInt;
 	public nint GetConVarFloat;
 	public nint GetConVarString;
+	public nint HasCommandLineParm;
 }

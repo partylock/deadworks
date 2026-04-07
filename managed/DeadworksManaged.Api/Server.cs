@@ -145,6 +145,14 @@ public static unsafe class Server {
 			NativeInterop.SetEngineLogCallback(0);
 	}
 
+	/// <summary>Returns true if the given parameter is present on the engine command line (e.g. "-nomaster").</summary>
+	public static bool HasCommandLineParm(string parm) {
+		Span<byte> utf8 = Utf8.Encode(parm, stackalloc byte[Utf8.Size(parm)]);
+		fixed (byte* ptr = utf8) {
+			return NativeInterop.HasCommandLineParm(ptr) != 0;
+		}
+	}
+
 	private static string Utf8Str(byte* ptr) =>
 		ptr != null ? Marshal.PtrToStringUTF8((nint)ptr) ?? "" : "";
 }

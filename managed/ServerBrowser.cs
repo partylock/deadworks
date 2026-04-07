@@ -37,7 +37,7 @@ internal static class ServerBrowser
         _credentialsDir = Path.GetFullPath(Path.Combine(managedDir!, "..", "configs", "ServerBrowser"));
         _config = DeadworksConfig.ServerBrowser;
 
-        if (_config.Unlisted)
+        if (_config.Unlisted || Server.HasCommandLineParm("-nomaster"))
         {
             Console.WriteLine("[ServerBrowser] Server is unlisted — heartbeat disabled.");
             return;
@@ -50,7 +50,7 @@ internal static class ServerBrowser
 
     public static void OnStartupServer()
     {
-        if (_config.Unlisted) return;
+        if (_config.Unlisted || Server.HasCommandLineParm("-nomaster")) return;
         ApplyServerAddons();
     }
 

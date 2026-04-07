@@ -105,4 +105,5 @@ internal static unsafe class NativeInterop
 	public static delegate* unmanaged[Cdecl]<ulong, int> GetConVarInt => (delegate* unmanaged[Cdecl]<ulong, int>)_cb.GetConVarInt;
 	public static delegate* unmanaged[Cdecl]<ulong, float> GetConVarFloat => (delegate* unmanaged[Cdecl]<ulong, float>)_cb.GetConVarFloat;
 	public static delegate* unmanaged[Cdecl]<ulong, byte*> GetConVarString => (delegate* unmanaged[Cdecl]<ulong, byte*>)_cb.GetConVarString;
+	public static delegate* unmanaged[Cdecl]<byte*, byte> HasCommandLineParm => (delegate* unmanaged[Cdecl]<byte*, byte>)_cb.HasCommandLineParm;
 }

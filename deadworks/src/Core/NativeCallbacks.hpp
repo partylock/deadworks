@@ -115,6 +115,7 @@ struct NativeCallbacks {
     int32_t(__cdecl *GetConVarInt)(uint64_t handle);
     float(__cdecl *GetConVarFloat)(uint64_t handle);
     const char *(__cdecl *GetConVarString)(uint64_t handle);
+    uint8_t(__cdecl *HasCommandLineParm)(const char *parm);
 };
 
 void PopulateNativeCallbacks(NativeCallbacks &callbacks);

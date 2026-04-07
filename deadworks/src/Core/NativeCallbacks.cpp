@@ -32,6 +32,7 @@
 #include <entity2/entityclass.h>
 #include <server_class.h>
 #include <icvar.h>
+#include <tier0/icommandline.h>
 
 using namespace deadworks;
 
@@ -782,6 +783,10 @@ static void *__cdecl NativeGetGlobalVars() {
     return g_pEngineServer->GetServerGlobals();
 }
 
+static uint8_t __cdecl NativeHasCommandLineParm(const char *parm) {
+    return CommandLine()->HasParm(CUtlStringToken(parm, static_cast<int>(strlen(parm)))) ? 1 : 0;
+}
+
 // ---------------------------------------------------------------------------
 // Resolve statics that PostInit needs
 // ---------------------------------------------------------------------------
@@ -912,4 +917,7 @@ void deadworks::PopulateNativeCallbacks(NativeCallbacks &callbacks) {
     // Server addons
     callbacks.SetServerAddons = &NativeSetServerAddons;
     callbacks.AddFileSystemSearchPath = &NativeAddFileSystemSearchPath;
+
+    // Command line
+    callbacks.HasCommandLineParm = &NativeHasCommandLineParm;
 }
