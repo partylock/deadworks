@@ -137,7 +137,9 @@
       <AdditionalLibraryDirectories>$(ProtobufLibDir);$(NetHostDir)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>if not "$(DeadlockDir)"=="" xcopy "$(ProjectDir)..\config\deadworks_mem.jsonc" "$(DeadlockDir)\..\..\citadel\cfg\" /Y /I</Command>
+      <Command>if not "$(DeadlockDir)"=="" xcopy "$(ProjectDir)..\config\deadworks_mem.jsonc" "$(DeadlockDir)\..\..\citadel\cfg\" /Y /I
+if not "$(DeadlockDir)"=="" copy /Y "$(TargetPath)" "$(DeadlockDir)\"
+if not "$(DeadlockDir)"=="" if exist "$(TargetDir)$(TargetName).pdb" copy /Y "$(TargetDir)$(TargetName).pdb" "$(DeadlockDir)\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
