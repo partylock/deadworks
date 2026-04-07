@@ -53,6 +53,27 @@ public static unsafe class Server {
 		}
 	}
 
+	/// <summary>Sets the server's addons string. Clients receive this in SignonState/connection messages.</summary>
+	public static void SetAddons(string addons) {
+		Span<byte> utf8 = Utf8.Encode(addons, stackalloc byte[Utf8.Size(addons)]);
+		fixed (byte* ptr = utf8) {
+			NativeInterop.SetServerAddons(ptr);
+		}
+	}
+
+	/// <summary>Adds a search path to the engine's filesystem. Use pathID "GAME" for general content.</summary>
+	/// <param name="path">Path to a directory or VPK file.</param>
+	/// <param name="pathID">Search path group (e.g. "GAME", "MOD").</param>
+	/// <param name="addToHead">If true, path is searched first (highest priority).</param>
+	public static bool AddSearchPath(string path, string pathID = "GAME", bool addToHead = true) {
+		Span<byte> pathUtf8 = Utf8.Encode(path, stackalloc byte[Utf8.Size(path)]);
+		Span<byte> idUtf8 = Utf8.Encode(pathID, stackalloc byte[Utf8.Size(pathID)]);
+		fixed (byte* pPath = pathUtf8)
+		fixed (byte* pId = idUtf8) {
+			return NativeInterop.AddFileSystemSearchPath(pPath, pId, addToHead ? 0 : 1) != 0;
+		}
+	}
+
 	/// <summary>Enumerates all registered ConVars by index.</summary>
 	public static List<ConVarEntry> EnumerateConVars() {
 		var list = new List<ConVarEntry>();

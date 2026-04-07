@@ -19,6 +19,9 @@
 #include "Hooks/ProcessUsercmds.hpp"
 #include "Hooks/AbilityThink.hpp"
 #include "Hooks/AddModifier.hpp"
+#include "Hooks/SendNetMessage.hpp"
+#include "Hooks/ReplyConnection.hpp"
+#include "A2SPatch.hpp"
 
 #include "../Memory/MemoryDataLoader.hpp"
 #include "../SDK/CBaseEntity.hpp"
@@ -101,6 +104,7 @@ void Deadworks::PostInit() {
     g_pNetworkMessages = reinterpret_cast<INetworkMessages *>(InterfaceFactories.networksystem(NETWORKMESSAGES_INTERFACE_VERSION, nullptr));
     g_pGameEventSystem = reinterpret_cast<IGameEventSystem *>(InterfaceFactories.engine2(GAMEEVENTSYSTEM_INTERFACE_VERSION, nullptr));
     g_pCVar = reinterpret_cast<ICvar *>(InterfaceFactories.tier0(CVAR_INTERFACE_VERSION, nullptr));
+    g_pFullFileSystem = reinterpret_cast<IFileSystem *>(InterfaceFactories.filesystem_stdio(FILESYSTEM_INTERFACE_VERSION, nullptr));
 
     if (!g_pSource2Server) {
         g_Log->Error("Failed to load ISource2Server. Abandoning ship!");
@@ -137,6 +141,11 @@ void Deadworks::PostInit() {
         return;
     }
 
+	if (!g_pFullFileSystem) {
+		g_Log->Error("Failed to load IFileSystem. Abandoning ship!");
+		return;
+	}
+
     ConVar_Register(FCVAR_RELEASE | FCVAR_CLIENT_CAN_EXECUTE | FCVAR_GAMEDLL);
 
     // Required inline hooks
@@ -163,6 +172,12 @@ void Deadworks::PostInit() {
     HookInline(hooks::g_CServerSideClientBase_FilterMessage,
                "CServerSideClientBase::FilterMessage",
                &hooks::Hook_CServerSideClientBase_FilterMessage, true);
+    HookInline(hooks::g_CServerSideClient_SendNetMessage,
+               "CServerSideClient::SendNetMessage",
+               &hooks::Hook_CServerSideClient_SendNetMessage, true);
+    HookInline(hooks::g_ReplyConnection,
+               "CNetworkGameServerBase::ReplyConnection",
+               &hooks::Hook_ReplyConnection, true);
     HookInline(hooks::g_CBaseEntity_TakeDamageOld,
                "CBaseEntity::TakeDamageOld",
                &hooks::Hook_CBaseEntity_TakeDamageOld, true);
@@ -218,6 +233,9 @@ void Deadworks::PostInit() {
     HookInline(hooks::g_CModifierProperty_AddModifier,
                "CModifierProperty::AddModifier",
                &hooks::Hook_CModifierProperty_AddModifier);
+
+    // Enable A2S_INFO responses on community servers
+    A2SPatch::Apply();
 
     // Resolve statics needed by Native* callbacks
     ResolveNativeStatics();
@@ -286,12 +304,12 @@ bool Deadworks::OnPre_CBaseEntity_TakeDamageOld(CBaseEntity *entity, CTakeDamage
 }
 
 bool Deadworks::OnPre_CCitadelPlayerPawn_ModifyCurrency(void *pawn, ECurrencyType nCurrencyType, int32_t nAmount,
-                                                    ECurrencySource nSource, bool bSilent, bool bForceGain, bool bSpendOnly,
-                                                    void *pSourceAbility, void *pSourceEntity) {
+                                                        ECurrencySource nSource, bool bSilent, bool bForceGain, bool bSpendOnly,
+                                                        void *pSourceAbility, void *pSourceEntity) {
     if (m_managed.onModifyCurrency)
         return m_managed.onModifyCurrency(pawn, static_cast<uint32_t>(nCurrencyType), nAmount,
-                                         static_cast<uint32_t>(nSource), bSilent ? 1 : 0, bForceGain ? 1 : 0,
-                                         bSpendOnly ? 1 : 0, pSourceAbility, pSourceEntity);
+                                          static_cast<uint32_t>(nSource), bSilent ? 1 : 0, bForceGain ? 1 : 0,
+                                          bSpendOnly ? 1 : 0, pSourceAbility, pSourceEntity);
     return false;
 }
 
@@ -344,6 +362,73 @@ bool Deadworks::OnPre_PostEventAbstract(int msgId, const CNetMessage *pData, uin
     }
 
     return result >= 1;
+}
+
+bool Deadworks::OnPre_SendNetMessage(CServerSideClientBase *client, const CNetMessage *pData) {
+    if (!m_managed.onSignonState || !pData)
+        return false;
+
+    auto *info = pData->GetSerializerPB()->GetNetMessageInfo();
+    if (!info || info->m_MessageId != 7) // net_SignonState
+        return false;
+
+    // CNetMessagePB inherits CNetMessage first, then PROTO_TYPE (multiple inheritance).
+    // SDK's As<T>() does static_cast<T*>(this) from CNetMessage* — valid downcast.
+    // const_cast is necessary because the SDK's As<T>() is non-const and we need to mutate.
+    // Use AsMessageLite + serialize/deserialize — we can't use generated C++ protobuf
+    // methods because our compiled protobuf layout doesn't match Valve's runtime.
+    auto *pb = const_cast<google::protobuf::MessageLite *>(pData->AsMessageLite());
+    if (!pb)
+        return false;
+
+    int size = static_cast<int>(pb->ByteSizeLong());
+    if (size <= 0)
+        return false;
+
+    std::vector<uint8_t> inBuf(size);
+    if (!pb->SerializeToArray(inBuf.data(), size))
+        return false;
+
+    g_Log->Info("[SignonState] before: {} bytes, proto={}", size, pb->DebugString());
+
+    static thread_local uint8_t outBuf[65536];
+    int outLen = 0;
+
+    m_managed.onSignonState(inBuf.data(), size, outBuf, &outLen);
+
+    if (outLen > 0) {
+        pb->Clear();
+        pb->ParseFromArray(outBuf, outLen);
+        g_Log->Info("[SignonState] after: {} bytes, proto={}", pb->ByteSizeLong(), pb->DebugString());
+    } else {
+        g_Log->Info("[SignonState] no modification from managed");
+    }
+
+    return false;
+}
+
+static constexpr ptrdiff_t kServerAddonsOffset = 0x158;
+
+void Deadworks::OnPre_ReplyConnection(void *server, CServerSideClientBase *client) {
+    if (m_desiredServerAddons.empty())
+        return;
+
+    // Save the engine's current addons value
+    auto *pAddons = reinterpret_cast<CUtlString *>(reinterpret_cast<uintptr_t>(server) + kServerAddonsOffset);
+    m_savedServerAddons = pAddons->Get();
+
+    // Inject ours
+    *pAddons = m_desiredServerAddons.c_str();
+    g_Log->Info("[ReplyConnection] Injected addons='{}' (was '{}')", m_desiredServerAddons, m_savedServerAddons);
+}
+
+void Deadworks::OnPost_ReplyConnection(void *server, CServerSideClientBase *client) {
+    if (m_desiredServerAddons.empty())
+        return;
+
+    // Restore original
+    auto *pAddons = reinterpret_cast<CUtlString *>(reinterpret_cast<uintptr_t>(server) + kServerAddonsOffset);
+    *pAddons = m_savedServerAddons.c_str();
 }
 
 void Deadworks::OnEntityCreated(CEntityInstance *pEntity) {
@@ -523,7 +608,7 @@ uint64_t Deadworks::OnPre_AbilityThink(int playerSlot, void *pawnEntity, uint64_
 }
 
 bool Deadworks::OnPre_AddModifier(void *modifierProp, CBaseEntity *&pCaster, uint32_t &hAbility, int &iTeam,
-                                   void *vdata, void *pParams, void *pKV) {
+                                  void *vdata, void *pParams, void *pKV) {
     if (m_managed.onAddModifier) {
         void *casterPtr = pCaster;
         int result = m_managed.onAddModifier(modifierProp, &casterPtr, &hAbility, &iTeam, vdata, pParams, pKV);
@@ -539,11 +624,13 @@ void Deadworks::GetInterfaceFactories() {
     Module schemasystem("schemasystem");
     Module networksystem("networksystem");
     Module tier0("tier0");
+    Module filesystem_stdio("filesystem_stdio");
 
     InterfaceFactories.server = server.GetSymbol<CreateInterfaceFn>("CreateInterface");
     InterfaceFactories.engine2 = engine2.GetSymbol<CreateInterfaceFn>("CreateInterface");
     InterfaceFactories.schemasystem = schemasystem.GetSymbol<CreateInterfaceFn>("CreateInterface");
     InterfaceFactories.networksystem = networksystem.GetSymbol<CreateInterfaceFn>("CreateInterface");
     InterfaceFactories.tier0 = tier0.GetSymbol<CreateInterfaceFn>("CreateInterface");
+    InterfaceFactories.filesystem_stdio = filesystem_stdio.GetSymbol<CreateInterfaceFn>("CreateInterface");
 }
 } // namespace deadworks

@@ -24,6 +24,9 @@
     <ClCompile Include="..\vendor\Zydis.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\Core\A2SPatch.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\Core\Deadworks.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -132,6 +135,15 @@
     <ClCompile Include="src\Memory\MemoryDataLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\Core\Hooks\SendNetMessage.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Core\Hooks\ReplyConnection.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Core\Hooks\AddModifier.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Lib\Module.hpp">
@@ -159,6 +171,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\Utils\Chrono.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Core\A2SPatch.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\Core\Deadworks.hpp">
@@ -315,6 +330,15 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\SDK\CGameSceneNode.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Core\Hooks\SendNetMessage.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Core\Hooks\ReplyConnection.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Core\Hooks\AddModifier.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

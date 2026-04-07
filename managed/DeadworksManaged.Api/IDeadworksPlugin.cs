@@ -116,4 +116,7 @@ public interface IDeadworksPlugin {
 	/// Return Stop to block the modifier from being applied.
 	/// </summary>
 	HookResult OnAddModifier(AddModifierEvent args) => HookResult.Continue;
+
+	/// <summary>Called when a SignonState message is about to be sent to a client. Set addons to modify the addons field.</summary>
+	void OnSignonState(ref string addons) { }
 }

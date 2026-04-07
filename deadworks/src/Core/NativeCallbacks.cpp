@@ -22,6 +22,7 @@
 #include <tier1/convar.h>
 #include <igameevents.h>
 #include <igameeventsystem.h>
+#include <filesystem.h>
 #include <tier1/keyvalues3.h>
 #include <tier1/utlvector.h>
 #include <variant.h>
@@ -202,6 +203,40 @@ static void __cdecl NativeSetConVarInt(uint64_t handle, int32_t value) {
         return;
     ConVarRefAbstract cvarAbs(ref, data);
     cvarAbs.SetAs<int>(value);
+}
+
+static int32_t __cdecl NativeGetConVarInt(uint64_t handle) {
+    if (!handle)
+        return 0;
+    ConVarRef ref(handle);
+    ConVarData *data = g_pCVar->GetConVarData(ref);
+    if (!data)
+        return 0;
+    ConVarRefAbstract cvarAbs(ref, data);
+    return cvarAbs.GetAs<int>();
+}
+
+static float __cdecl NativeGetConVarFloat(uint64_t handle) {
+    if (!handle)
+        return 0.0f;
+    ConVarRef ref(handle);
+    ConVarData *data = g_pCVar->GetConVarData(ref);
+    if (!data)
+        return 0.0f;
+    ConVarRefAbstract cvarAbs(ref, data);
+    return cvarAbs.GetAs<float>();
+}
+
+static const char *__cdecl NativeGetConVarString(uint64_t handle) {
+    if (!handle)
+        return "";
+    ConVarRef ref(handle);
+    ConVarRefAbstract cvarAbs(ref);
+    if (!cvarAbs.IsValidRef() || !cvarAbs.IsConVarDataValid())
+        return "";
+    static CBufferStringGrowable<256> s_buf;
+    cvarAbs.GetValueAsString(s_buf);
+    return s_buf.Get();
 }
 
 static void __cdecl NativeSetConVarFloat(uint64_t handle, float value) {
@@ -542,6 +577,20 @@ static void __cdecl NativeFreeGameEvent(void *event) {
     g_pGameEventManager2->FreeEvent(static_cast<IGameEvent *>(event));
 }
 
+// --- Server Addons ---
+
+static void __cdecl NativeSetServerAddons(const char *addons) {
+    g_Deadworks.SetDesiredAddons(addons);
+    g_Log->Info("[Addons] Set desired server addons to '{}'", addons ? addons : "");
+}
+
+static uint8_t __cdecl NativeAddFileSystemSearchPath(const char *path, const char *pathID, int addType) {
+    if (!g_pFullFileSystem || !path) return 0;
+    g_pFullFileSystem->AddSearchPath(path, pathID ? pathID : "GAME", static_cast<SearchPathAdd_t>(addType));
+    g_Log->Info("[FileSystem] Added search path '{}' (pathID='{}', addType={})", path, pathID ? pathID : "GAME", addType);
+    return 1;
+}
+
 // --- Networking ---
 
 static void __cdecl NativeSendNetMessage(int msgId, const uint8_t *protoBytes, int protoLen, uint64_t recipientMask) {
@@ -762,6 +811,9 @@ void deadworks::PopulateNativeCallbacks(NativeCallbacks &callbacks) {
     callbacks.FindConVar = &NativeFindConVar;
     callbacks.SetConVarInt = &NativeSetConVarInt;
     callbacks.SetConVarFloat = &NativeSetConVarFloat;
+    callbacks.GetConVarInt = &NativeGetConVarInt;
+    callbacks.GetConVarFloat = &NativeGetConVarFloat;
+    callbacks.GetConVarString = &NativeGetConVarString;
 
     // Entity
     callbacks.GetEntityDesignerName = &NativeGetEntityDesignerName;
@@ -856,4 +908,8 @@ void deadworks::PopulateNativeCallbacks(NativeCallbacks &callbacks) {
 
     // Engine log forwarding
     callbacks.SetEngineLogCallback = &NativeSetEngineLogCallback;
+
+    // Server addons
+    callbacks.SetServerAddons = &NativeSetServerAddons;
+    callbacks.AddFileSystemSearchPath = &NativeAddFileSystemSearchPath;
 }

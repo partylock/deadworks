@@ -32,4 +32,5 @@ public abstract class DeadworksPluginBase : IDeadworksPlugin {
 	public virtual void OnProcessUsercmds(ProcessUsercmdsEvent args) { }
 	public virtual HookResult OnAddModifier(AddModifierEvent args) => HookResult.Continue;
 	public virtual void OnConfigReloaded() { }
+	public virtual void OnSignonState(ref string addons) { }
 }

@@ -100,4 +100,9 @@ internal struct NativeCallbacks
 	public nint GetGlobalVars;
 	public nint SetEngineLogCallback;
 	public nint SetUpgradeBits;
+	public nint SetServerAddons;
+	public nint AddFileSystemSearchPath;
+	public nint GetConVarInt;
+	public nint GetConVarFloat;
+	public nint GetConVarString;
 }

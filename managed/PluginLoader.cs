@@ -93,6 +93,7 @@ internal static partial class PluginLoader
         TimerRegistry.Initialize();
         ConfigManager.Initialize();
         ConCommandManager.Initialize();
+        ServerBrowser.Initialize();
         PluginStateManager.Initialize();
         PluginRegistry.Resolve = () => _pluginSnapshot.Select(p => p.Name).ToArray();
 
@@ -396,6 +397,7 @@ internal static partial class PluginLoader
     public static void DispatchStartupServer()
     {
         TimerRegistry.CancelAllMapChangeTimers();
+        ServerBrowser.OnStartupServer();
         DispatchToPlugins(p => p.OnStartupServer(), nameof(IDeadworksPlugin.OnStartupServer));
     }
 
@@ -473,8 +475,19 @@ internal static partial class PluginLoader
     public static HookResult DispatchAddModifier(AddModifierEvent args)
         => DispatchToPluginsWithResult(p => p.OnAddModifier(args), nameof(IDeadworksPlugin.OnAddModifier));
 
+    public static void DispatchSignonState(ref string addons)
+    {
+        foreach (var plugin in _pluginSnapshot)
+        {
+            try { plugin.OnSignonState(ref addons); }
+            catch (Exception ex) { Console.WriteLine($"[PluginLoader] {plugin.Name}.OnSignonState error: {ex.Message}"); }
+        }
+    }
+
     public static void UnloadAll()
     {
+        ServerBrowser.Shutdown();
+
         _watcher?.Dispose();
         _watcher = null;
         _debounceTimer?.Dispose();

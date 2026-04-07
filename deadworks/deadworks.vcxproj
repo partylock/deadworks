@@ -192,6 +192,8 @@
     <ClCompile Include="src\Core\Hooks\GameEvents.cpp" />
     <ClCompile Include="src\Core\Hooks\CServerSideClientBase.cpp" />
     <ClCompile Include="src\Core\Hooks\PostEventAbstract.cpp" />
+    <ClCompile Include="src\Core\Hooks\SendNetMessage.cpp" />
+    <ClCompile Include="src\Core\Hooks\ReplyConnection.cpp" />
     <ClCompile Include="src\Core\Hooks\NetworkServerService.cpp" />
     <ClCompile Include="src\Core\Hooks\Source2GameClients.cpp" />
     <ClCompile Include="src\Core\Hooks\Source2Server.cpp" />
@@ -200,6 +202,7 @@
     <ClCompile Include="src\Core\Hooks\ProcessUsercmds.cpp" />
     <ClCompile Include="src\Core\Hooks\AbilityThink.cpp" />
     <ClCompile Include="src\Core\Hooks\AddModifier.cpp" />
+    <ClCompile Include="src\Core\A2SPatch.cpp" />
     <ClCompile Include="src\Core\Deadworks.cpp" />
     <ClCompile Include="src\Core\NativeCallbacks.cpp" />
     <ClCompile Include="src\Core\NativeAbility.cpp" />
@@ -236,6 +239,8 @@
     <ClInclude Include="src\Core\Hooks\GameEvents.hpp" />
     <ClInclude Include="src\Core\Hooks\CServerSideClientBase.hpp" />
     <ClInclude Include="src\Core\Hooks\PostEventAbstract.hpp" />
+    <ClInclude Include="src\Core\Hooks\SendNetMessage.hpp" />
+    <ClInclude Include="src\Core\Hooks\ReplyConnection.hpp" />
     <ClInclude Include="src\Core\Hooks\NetworkServerService.hpp" />
     <ClInclude Include="src\Core\Hooks\Source2GameClients.hpp" />
     <ClInclude Include="src\Core\Hooks\Source2Server.hpp" />
@@ -245,6 +250,7 @@
     <ClInclude Include="src\Core\Hooks\AbilityThink.hpp" />
     <ClInclude Include="src\Core\Hooks\AddModifier.hpp" />
     <ClInclude Include="src\Core\Hooks\BuildGameSessionManifest.hpp" />
+    <ClInclude Include="src\Core\A2SPatch.hpp" />
     <ClInclude Include="src\Core\Deadworks.hpp" />
     <ClInclude Include="src\Core\NativeCallbacks.hpp" />
     <ClInclude Include="src\Core\NativeOffsets.hpp" />

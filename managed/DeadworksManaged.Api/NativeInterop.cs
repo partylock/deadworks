@@ -100,4 +100,9 @@ internal static unsafe class NativeInterop
 	public static delegate* unmanaged[Cdecl]<void*> GetGlobalVars => (delegate* unmanaged[Cdecl]<void*>)_cb.GetGlobalVars;
 	public static delegate* unmanaged[Cdecl]<nint, void> SetEngineLogCallback => (delegate* unmanaged[Cdecl]<nint, void>)_cb.SetEngineLogCallback;
 	public static delegate* unmanaged[Cdecl]<void*, int, void> SetUpgradeBits => (delegate* unmanaged[Cdecl]<void*, int, void>)_cb.SetUpgradeBits;
+	public static delegate* unmanaged[Cdecl]<byte*, void> SetServerAddons => (delegate* unmanaged[Cdecl]<byte*, void>)_cb.SetServerAddons;
+	public static delegate* unmanaged[Cdecl]<byte*, byte*, int, byte> AddFileSystemSearchPath => (delegate* unmanaged[Cdecl]<byte*, byte*, int, byte>)_cb.AddFileSystemSearchPath;
+	public static delegate* unmanaged[Cdecl]<ulong, int> GetConVarInt => (delegate* unmanaged[Cdecl]<ulong, int>)_cb.GetConVarInt;
+	public static delegate* unmanaged[Cdecl]<ulong, float> GetConVarFloat => (delegate* unmanaged[Cdecl]<ulong, float>)_cb.GetConVarFloat;
+	public static delegate* unmanaged[Cdecl]<ulong, byte*> GetConVarString => (delegate* unmanaged[Cdecl]<ulong, byte*>)_cb.GetConVarString;
 }

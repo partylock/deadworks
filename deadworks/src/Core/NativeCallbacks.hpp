@@ -110,6 +110,11 @@ struct NativeCallbacks {
     void *(__cdecl *GetGlobalVars)();
     void(__cdecl *SetEngineLogCallback)(void(__cdecl *callback)(const char *message));
     void(__cdecl *SetUpgradeBits)(void *ability, int32_t newBits);
+    void(__cdecl *SetServerAddons)(const char *addons);
+    uint8_t(__cdecl *AddFileSystemSearchPath)(const char *path, const char *pathID, int addType);
+    int32_t(__cdecl *GetConVarInt)(uint64_t handle);
+    float(__cdecl *GetConVarFloat)(uint64_t handle);
+    const char *(__cdecl *GetConVarString)(uint64_t handle);
 };
 
 void PopulateNativeCallbacks(NativeCallbacks &callbacks);

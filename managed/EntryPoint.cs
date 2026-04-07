@@ -164,6 +164,29 @@ public static class EntryPoint
     }
 
     [UnmanagedCallersOnly]
+    public static unsafe void OnSignonState(byte* protoBytes, int protoLen, byte* outBytes, int* outLen)
+    {
+        var span = new ReadOnlySpan<byte>(protoBytes, protoLen);
+        var msg = CNETMsg_SignonState.Parser.ParseFrom(span);
+
+        var addons = msg.Addons;
+        PluginLoader.DispatchSignonState(ref addons);
+
+        if (addons != msg.Addons)
+        {
+            msg.Addons = addons;
+            var modified = msg.ToByteArray();
+            var outSpan = new Span<byte>(outBytes, 65536);
+            modified.AsSpan().CopyTo(outSpan);
+            *outLen = modified.Length;
+        }
+        else
+        {
+            *outLen = 0;
+        }
+    }
+
+    [UnmanagedCallersOnly]
     public static unsafe byte OnClientConnect(int slot, char* name, ulong xuid, char* ipAddress)
     {
         var args = new ClientConnectEvent

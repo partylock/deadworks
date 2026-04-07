@@ -98,6 +98,7 @@ public static class NetMessageRegistry
 
 		Func<string, string?>? mapper = enumDesc.Name switch
 		{
+			"NET_Messages" => MapNetMsg,
 			"CitadelUserMessageIds" => MapCitadelUserMsg,
 			"ECitadelClientMessages" => MapCitadelClientMsg,
 			"EBaseUserMessages" => MapBaseUserMsg,
@@ -212,6 +213,13 @@ public static class NetMessageRegistry
 	{
 		if (!name.StartsWith("TE_")) return null;
 		return "CMsgTE" + name["TE_".Length..];
+	}
+
+	// net_Foo -> CNETMsg_Foo
+	private static string? MapNetMsg(string name)
+	{
+		if (!name.StartsWith("net_")) return null;
+		return "CNETMsg_" + name["net_".Length..];
 	}
 
 	/// <summary>Manually registers a protobuf message type with a specific network message ID, bypassing the automatic enum-based discovery.</summary>

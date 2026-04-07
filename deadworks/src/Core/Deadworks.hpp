@@ -54,8 +54,15 @@ public:
                                                   void *pSourceAbility, void *pSourceEntity);
     // Game Events
     int OnPre_GameEvent(const char *eventName, void *eventPtr);
-    // Net Messages (outgoing)
+    // Net Messages (outgoing — broadcast via game event system)
     bool OnPre_PostEventAbstract(int msgId, const CNetMessage *pData, uint64 *clientsMask);
+    // Net Messages (outgoing — per-client via SendNetMessage, catches SignonState etc.)
+    bool OnPre_SendNetMessage(CServerSideClientBase *client, const CNetMessage *pData);
+    // ReplyConnection — temporarily inject addons into the server object
+    void OnPre_ReplyConnection(void *server, CServerSideClientBase *client);
+    void OnPost_ReplyConnection(void *server, CServerSideClientBase *client);
+    // Called from NativeSetServerAddons to store the desired value
+    void SetDesiredAddons(const char *addons) { m_desiredServerAddons = addons ? addons : ""; }
     // Entity Listener
     void OnEntityCreated(CEntityInstance *pEntity);
     void OnEntitySpawned(CEntityInstance *pEntity);
@@ -97,10 +104,13 @@ private:
         CreateInterfaceFn schemasystem;
         CreateInterfaceFn networksystem;
         CreateInterfaceFn tier0;
+        CreateInterfaceFn filesystem_stdio;
     } InterfaceFactories;
 
     bool m_clientFullyConnected[64]{};
     bool m_touchHooksInitialized = false;
+    std::string m_savedServerAddons;   // stash original value for ReplyConnection restore
+    std::string m_desiredServerAddons; // value set by managed plugins via SetServerAddons
     DotNetHost m_dotnetHost;
     bool m_dotnetInitialized = false;
     ManagedCallbacks m_managed{};
