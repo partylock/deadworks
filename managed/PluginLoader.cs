@@ -91,6 +91,7 @@ internal static partial class PluginLoader
     public static void LoadAll()
     {
         TimerRegistry.Initialize();
+        DeadworksConfig.Initialize();
         ConfigManager.Initialize();
         ConCommandManager.Initialize();
         ServerBrowser.Initialize();

@@ -36,6 +36,28 @@ std::expected<void, std::string> MemoryDataLoader::Load(std::string_view configP
             }
         }
 
+        if (data.contains("patches")) {
+            for (auto &[key, value] : data["patches"].items()) {
+                auto library = value["library"].get<std::string>();
+#ifdef _WIN32
+                auto pattern = value["windows"].get<std::string>();
+#else
+                auto pattern = value["linux"].get<std::string>();
+#endif
+                Module module{library};
+                if (!module.IsValid()) {
+                    return std::unexpected("Failed to load module for patch " + key);
+                }
+
+                const auto scanResult = Scanner::FindFirst(module.GetSectionMemory(".text"), Scanner::ParseSignature(pattern).value());
+                if (scanResult.has_value()) {
+                    m_patches[key] = *scanResult;
+                } else {
+                    return std::unexpected("Failed to find patch signature " + key);
+                }
+            }
+        }
+
         if (data.contains("virtuals")) {
             for (auto &[key, value] : data["virtuals"].items()) {
                 m_virtuals[key] = value.get<int>();

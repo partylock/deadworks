@@ -1,18 +1,12 @@
 #include "A2SPatch.hpp"
 #include "Deadworks.hpp"
-#include "../Lib/Module.hpp"
-#include "../Memory/Scanner.hpp"
+#include "../Memory/MemoryDataLoader.hpp"
 
 #include <safetyhook.hpp>
 
 namespace deadworks {
 namespace A2SPatch {
 
-// SetAdvertiseServerActive gate
-//   call IsOfficialServer / test al,al / jz / ... / test eax,eax / jle
-// Two conditional jumps block the call on community servers.
-static constexpr auto kSigAdvertise =
-    "E8 ?? ?? ?? ?? 84 C0 74 ?? 48 8B 0D ?? ?? ?? ?? ?? ?? ?? FF 90 ?? ?? ?? ?? 45 33 C0";
 static constexpr ptrdiff_t kJzOffset  = 7;   // jz  after IsOfficialServer check
 static constexpr ptrdiff_t kJleOffset = 46;  // jle after GMS/Advertise GetInt check
 
@@ -26,23 +20,9 @@ static bool PatchBytes(uint8_t *addr, const uint8_t *bytes, size_t len) {
 }
 
 bool Apply() {
-    Module engine2("engine2.dll");
-    if (!engine2.IsValid()) {
-        g_Log->Error("[A2S] Failed to get engine2.dll module");
-        return false;
-    }
-
-    auto textSection = engine2.GetSectionMemory(".text");
-
-    auto sig = Scanner::ParseSignature(kSigAdvertise);
-    if (!sig) {
-        g_Log->Error("[A2S] Failed to parse advertise signature: {}", sig.error());
-        return false;
-    }
-
-    auto match = Scanner::FindFirst(textSection, *sig);
+    auto match = MemoryDataLoader::Get().GetPatch("A2S Advertise Gate");
     if (!match) {
-        g_Log->Error("[A2S] Advertise gate signature not found in engine2.dll");
+        g_Log->Error("[A2S] Advertise gate patch not found (not resolved by MemoryDataLoader)");
         return false;
     }
 
