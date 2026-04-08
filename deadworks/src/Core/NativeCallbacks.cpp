@@ -469,6 +469,70 @@ static void __cdecl NativeKV3SetVector(void *kv3, const char *key, float x, floa
     static_cast<KeyValues3 *>(kv3)->SetMemberVector(CKV3MemberName::Make(key), Vector(x, y, z));
 }
 
+// --- Subclass registry ---
+
+using SubclassLookupFn = void *(__fastcall *)(void *registry, uint32_t typeFilter, const char *name);
+static SubclassLookupFn g_SubclassLookup = nullptr;
+static void **g_ppSubclassRegistry = nullptr; // pointer TO the global (deref at call time)
+
+using LookupVDataByHashFn = void *(__fastcall *)(int32_t typeFilter, uint32_t hash);
+static LookupVDataByHashFn g_LookupVDataByHash = nullptr;
+
+static void ResolveSubclassStatics() {
+    auto &mem = deadworks::MemoryDataLoader::Get();
+
+    auto lookupOpt = mem.GetOffset("SubclassRegistry::Lookup");
+    if (lookupOpt)
+        g_SubclassLookup = reinterpret_cast<SubclassLookupFn>(lookupOpt.value());
+
+    auto refOpt = mem.GetOffset("SubclassRegistry::GlobalRef");
+    if (refOpt) {
+        auto match = refOpt.value();
+        // 48 8B 0D [disp32] = mov rcx, [rip+disp]
+        // Store pointer TO the global, deref lazily (null during early init)
+        auto disp = *reinterpret_cast<int32_t *>(match + 3);
+        g_ppSubclassRegistry = reinterpret_cast<void **>(match + 7 + disp);
+    }
+
+    auto vdataOpt = mem.GetOffset("LookupVDataByHash");
+    if (vdataOpt)
+        g_LookupVDataByHash = reinterpret_cast<LookupVDataByHashFn>(vdataOpt.value());
+}
+
+static void *__cdecl NativeLookupVDataByHash(int32_t typeFilter, uint32_t hash) {
+    if (!g_LookupVDataByHash || !hash)
+        return nullptr;
+    return g_LookupVDataByHash(typeFilter, hash);
+}
+
+// Resolve designer name → base entity classname + subclass_id via the subclass registry.
+// Returns base classname (e.g. "base_npc") or nullptr if not a designer/subclass name.
+static const char *__cdecl NativeResolveDesignerName(const char *designerName, uint32_t *outSubclassId) {
+    if (outSubclassId)
+        *outSubclassId = 0;
+    void *registry = g_ppSubclassRegistry ? *g_ppSubclassRegistry : nullptr;
+    if (!designerName || !g_SubclassLookup || !registry)
+        return nullptr;
+
+    void *entry = g_SubclassLookup(registry, 0xFFFFFFFF, designerName);
+    if (!entry)
+        return nullptr;
+
+    // Subclass entry layout
+    //   +8  = type (int32)    -1 = unknown, 0 = entity subclass, 2 = ability
+    //   +12 = subclass_id hash (uint32)
+    //   +24 = base entity classname (const char*)
+    auto addr = reinterpret_cast<uintptr_t>(entry);
+    if (*reinterpret_cast<int32_t *>(addr + 8) == 2)
+        return nullptr;
+
+    if (outSubclassId)
+        *outSubclassId = *reinterpret_cast<uint32_t *>(addr + 12);
+
+    const char *baseClassName = *reinterpret_cast<const char **>(addr + 24);
+    return (baseClassName && *baseClassName) ? baseClassName : nullptr;
+}
+
 // --- Entity creation ---
 
 static void *__cdecl NativeCreateEntityByName(const char *className) {
@@ -556,6 +620,12 @@ static void __cdecl NativeEKVSetInt(void *ekv, const char *key, int32_t value) {
 static void __cdecl NativeEKVSetColor(void *ekv, const char *key, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
     if (!ekv || !key) return;
     static_cast<CEntityKeyValues *>(ekv)->SetColor(CKV3MemberName::Make(key), Color(r, g, b, a));
+}
+
+static void __cdecl NativeEKVSetStringToken(void *ekv, const char *key, const char *tokenString) {
+    if (!ekv || !key || !tokenString) return;
+    CUtlStringToken token(tokenString, V_strlen(tokenString));
+    static_cast<CEntityKeyValues *>(ekv)->SetStringToken(CKV3MemberName::Make(key), token);
 }
 
 // --- Game events ---
@@ -794,6 +864,7 @@ static uint8_t __cdecl NativeHasCommandLineParm(const char *parm) {
 void deadworks::ResolveNativeStatics() {
     ResolveDamageStatics();
     ResolveHeroStatics();
+    ResolveSubclassStatics();
 }
 
 // ---------------------------------------------------------------------------
@@ -920,4 +991,11 @@ void deadworks::PopulateNativeCallbacks(NativeCallbacks &callbacks) {
 
     // Command line
     callbacks.HasCommandLineParm = &NativeHasCommandLineParm;
+
+    // EKV extended
+    callbacks.EKVSetStringToken = &NativeEKVSetStringToken;
+
+    // Subclass resolution
+    callbacks.ResolveDesignerName = &NativeResolveDesignerName;
+    callbacks.LookupVDataByHash = &NativeLookupVDataByHash;
 }

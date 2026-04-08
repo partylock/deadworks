@@ -87,6 +87,18 @@ public sealed unsafe class CEntityKeyValues
 		}
 	}
 
+	/// <summary>Sets a string token value (CUtlStringToken). The token hash is computed from <paramref name="tokenString"/>.</summary>
+	public void SetStringToken(string key, string tokenString)
+	{
+		ThrowIfInvalid();
+		Span<byte> keyUtf8 = Utf8.Encode(key, stackalloc byte[Utf8.Size(key)]);
+		Span<byte> valUtf8 = Utf8.Encode(tokenString, stackalloc byte[Utf8.Size(tokenString)]);
+		fixed (byte* keyPtr = keyUtf8, valPtr = valUtf8)
+		{
+			NativeInterop.EKVSetStringToken(Handle, keyPtr, valPtr);
+		}
+	}
+
 	private void ThrowIfInvalid()
 	{
 		if (Handle == null)

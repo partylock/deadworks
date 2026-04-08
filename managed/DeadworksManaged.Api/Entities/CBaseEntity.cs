@@ -17,6 +17,39 @@ public unsafe class CBaseEntity : NativeEntity {
 		}
 	}
 
+	/// <summary>
+	/// Creates an entity by its designer/subclass name (e.g. "npc_boss_tier2").
+	/// Resolves the designer name through the subclass registry, creates the entity using the
+	/// base class, and writes <c>m_nSubclassID</c> + <c>m_pSubclassVData</c> directly so VData
+	/// is available before <see cref="Spawn()"/> is called.
+	/// </summary>
+	public static CBaseEntity? CreateByDesignerName(string designerName) {
+		// Resolve designer name → base entity class + subclass_id hash
+		Span<byte> nameUtf8 = Utf8.Encode(designerName, stackalloc byte[Utf8.Size(designerName)]);
+		string entityClassName = designerName;
+		uint subclassId = 0;
+		fixed (byte* namePtr = nameUtf8) {
+			byte* baseClassPtr = NativeInterop.ResolveDesignerName(namePtr, &subclassId);
+			if (baseClassPtr != null)
+				entityClassName = System.Runtime.InteropServices.Marshal.PtrToStringUTF8((nint)baseClassPtr) ?? designerName;
+		}
+
+		var entity = CreateByName(entityClassName);
+		if (entity == null) return null;
+
+		// If this is a subclass, write m_nSubclassID and m_pSubclassVData directly
+		if (subclassId != 0) {
+			void* vdata = NativeInterop.LookupVDataByHash(-1, subclassId);
+			if (vdata != null) {
+				nint subclassAddr = _subclassID.GetAddress(entity.Handle);
+				*(uint*)subclassAddr = subclassId;          // m_nSubclassID (CUtlStringToken, 4 bytes)
+				*(nint*)(subclassAddr + 4) = (nint)vdata;   // m_pSubclassVData (pointer, right after)
+			}
+		}
+
+		return entity;
+	}
+
 	/// <summary>Gets an entity by its entity handle (CEntityHandle as uint32). Returns null if invalid.</summary>
 	public static CBaseEntity? FromHandle(uint handle) {
 		if (handle == 0xFFFFFFFF) return null;

@@ -107,4 +107,7 @@ internal struct NativeCallbacks
 	public nint GetConVarFloat;
 	public nint GetConVarString;
 	public nint HasCommandLineParm;
+	public nint EKVSetStringToken;
+	public nint ResolveDesignerName;
+	public nint LookupVDataByHash;
 }

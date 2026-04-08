@@ -117,6 +117,9 @@ struct NativeCallbacks {
     float(__cdecl *GetConVarFloat)(uint64_t handle);
     const char *(__cdecl *GetConVarString)(uint64_t handle);
     uint8_t(__cdecl *HasCommandLineParm)(const char *parm);
+    void(__cdecl *EKVSetStringToken)(void *ekv, const char *key, const char *tokenString);
+    const char *(__cdecl *ResolveDesignerName)(const char *designerName, uint32_t *outSubclassId);
+    void *(__cdecl *LookupVDataByHash)(int32_t typeFilter, uint32_t hash);
 };
 
 void PopulateNativeCallbacks(NativeCallbacks &callbacks);
