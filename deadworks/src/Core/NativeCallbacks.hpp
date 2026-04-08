@@ -45,6 +45,7 @@ struct NativeCallbacks {
     void(__cdecl *SetPawn)(void *controller, void *pawn, uint8_t bRetainOldPawnTeam, uint8_t bCopyMovementState, uint8_t bAllowTeamMismatch, uint8_t bPreserveMovementState);
     void *(__cdecl *AddModifier)(void *entity, const char *modifierName, void *kv3, void *caster, void *ability, int32_t team,
                                  const char *const *overrideNames, const float *overrideValues, int32_t overrideCount);
+    uint8_t(__cdecl *RemoveModifier)(void *entity, void *modifier);
     void *(__cdecl *KV3Create)();
     void(__cdecl *KV3Destroy)(void *kv3);
     void(__cdecl *KV3SetString)(void *kv3, const char *key, const char *value);

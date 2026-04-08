@@ -223,6 +223,22 @@ public unsafe class CBaseEntity : NativeEntity {
 		}
 	}
 
+	/// <summary>Removes a specific modifier instance from this entity.</summary>
+	public bool RemoveModifier(CBaseModifier modifier) {
+		return NativeInterop.RemoveModifier((void*)Handle, (void*)modifier.Handle) != 0;
+	}
+
+	/// <summary>Removes the first modifier matching the given VData name (e.g. "modifier_stunned") from this entity.</summary>
+	public bool RemoveModifier(string name) {
+		var modProp = ModifierProp;
+		if (modProp == null) return false;
+		foreach (var mod in modProp.Modifiers) {
+			if (mod.SubclassVData?.Name == name)
+				return RemoveModifier(mod);
+		}
+		return false;
+	}
+
 	/// <summary>Plays a sound event on this entity.</summary>
 	public void EmitSound(string soundName, int pitch = 100, float volume = 1.0f, float delay = 0.0f) {
 		Span<byte> utf8 = Utf8.Encode(soundName, stackalloc byte[Utf8.Size(soundName)]);

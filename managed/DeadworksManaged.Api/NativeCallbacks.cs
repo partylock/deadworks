@@ -35,6 +35,7 @@ internal struct NativeCallbacks
 	public nint RemoveEntity;
 	public nint SetPawn;
 	public nint AddModifier;
+	public nint RemoveModifier;
 	public nint KV3Create;
 	public nint KV3Destroy;
 	public nint KV3SetString;

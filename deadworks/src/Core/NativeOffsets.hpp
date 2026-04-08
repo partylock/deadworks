@@ -20,6 +20,9 @@ constexpr int kVtblTeleport = 163;
 constexpr int kVtblHeal = 123;
 constexpr int kVtblGetMaxHealth = 181;
 
+// CBaseModifier
+constexpr int kVtblModifierDestroy = 22;
+
 // CBasePlayerController
 constexpr int kVtblChangeTeam = 103;
 

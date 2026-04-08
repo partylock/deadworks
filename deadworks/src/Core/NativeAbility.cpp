@@ -391,6 +391,24 @@ static void *__cdecl NativeAddModifier(void *entity, const char *modifierName, v
     return result;
 }
 
+static uint8_t __cdecl NativeRemoveModifier(void *entity, void *modifier) {
+    if (!entity || !modifier)
+        return 0;
+
+    auto *ent = static_cast<CBaseEntity *>(entity);
+    CModifierProperty *modProp = ent->m_pModifierProp;
+    if (!modProp) {
+        g_Log->Error("RemoveModifier: Entity has no modifier property");
+        return 0;
+    }
+
+    auto destroyFn = GetVFunc<void(__fastcall *)(void *, uint32_t, void *, void *)>(modifier, kVtblModifierDestroy);
+    destroyFn(modifier, 6, nullptr, nullptr);
+    modProp->m_bModifierStatesDirty = true;
+
+    return 1;
+}
+
 // ---------------------------------------------------------------------------
 // Ability execution natives
 // ---------------------------------------------------------------------------
@@ -435,6 +453,7 @@ void deadworks::PopulateAbilityNatives(NativeCallbacks &cb) {
     cb.AddItem = &NativeAddItem;
     cb.SellItem = &NativeSellItem;
     cb.AddModifier = &NativeAddModifier;
+    cb.RemoveModifier = &NativeRemoveModifier;
     cb.ExecuteAbilityBySlot = &NativeExecuteAbilityBySlot;
     cb.ExecuteAbilityByID = &NativeExecuteAbilityByID;
     cb.ExecuteAbility = &NativeExecuteAbility;
