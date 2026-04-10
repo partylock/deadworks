@@ -309,6 +309,16 @@ public unsafe class CBaseEntity : NativeEntity {
 	public LifeState LifeState { get => (LifeState)_lifeState.Get(Handle); set => _lifeState.Set(Handle, (uint)value); }
 	public bool IsAlive => LifeState == LifeState.Alive;
 
+	private static readonly SchemaAccessor<uint> _hGroundEntity = new("CBaseEntity"u8, "m_hGroundEntity"u8);
+	/// <summary>The entity this entity is standing on, or null if airborne.</summary>
+	public CBaseEntity? GroundEntity => FromHandle(_hGroundEntity.Get(Handle));
+	/// <summary>Returns true if this entity is on the ground (has a valid ground entity).</summary>
+	public bool IsOnGround => _hGroundEntity.Get(Handle) != 0xFFFFFFFF;
+
+	private static readonly SchemaAccessor<Vector3> _vecAbsVelocity = new("CBaseEntity"u8, "m_vecAbsVelocity"u8);
+	/// <summary>The entity's absolute velocity.</summary>
+	public Vector3 AbsVelocity { get => _vecAbsVelocity.Get(Handle); set => _vecAbsVelocity.Set(Handle, value); }
+
 	private static readonly SchemaAccessor<nint> _modifierProp = new("CBaseEntity"u8, "m_pModifierProp"u8);
 	public CModifierProperty? ModifierProp {
 		get {
