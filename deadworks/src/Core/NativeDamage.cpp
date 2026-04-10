@@ -31,11 +31,14 @@ static void __cdecl NativeHurtEntity(void *victim, void *attacker, void *inflict
     if (!victim) return;
     if (!g_pCTakeDamageInfoCtor || !g_pCTakeDamageInfoDtor) return;
 
+    void *effectiveInflictor = inflictor ? inflictor : victim;
+    void *effectiveAttacker = attacker ? attacker : effectiveInflictor;
+
     auto size = GetCTakeDamageInfoSize();
     auto *info = static_cast<uint8_t *>(_aligned_malloc(size, 16));
     if (!info) return;
     std::memset(info, 0, size);
-    g_pCTakeDamageInfoCtor(info, inflictor, attacker ? attacker : inflictor, ability, damage, damageType, 0);
+    g_pCTakeDamageInfoCtor(info, effectiveInflictor, effectiveAttacker, ability, damage, damageType, 0);
     hooks::g_CBaseEntity_TakeDamageOld.thiscall<void>(victim, info, nullptr);
     g_pCTakeDamageInfoDtor(info);
     _aligned_free(info);
