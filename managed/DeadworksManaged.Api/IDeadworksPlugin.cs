@@ -119,4 +119,10 @@ public interface IDeadworksPlugin {
 
 	/// <summary>Called when a SignonState message is about to be sent to a client. Set addons to modify the addons field.</summary>
 	void OnSignonState(ref string addons) { }
+
+	/// <summary>
+	/// Called per-player each tick after the engine builds the default transmit list.
+	/// Use <see cref="CheckTransmitEvent.Hide"/> to prevent entities from being networked to this player.
+	/// </summary>
+	void OnCheckTransmit(CheckTransmitEvent args) { }
 }

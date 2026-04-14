@@ -33,4 +33,5 @@ public abstract class DeadworksPluginBase : IDeadworksPlugin {
 	public virtual HookResult OnAddModifier(AddModifierEvent args) => HookResult.Continue;
 	public virtual void OnConfigReloaded() { }
 	public virtual void OnSignonState(ref string addons) { }
+	public virtual void OnCheckTransmit(CheckTransmitEvent args) { }
 }

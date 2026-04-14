@@ -408,6 +408,13 @@ public static class EntryPoint
     }
 
     [UnmanagedCallersOnly]
+    public static unsafe void OnCheckTransmit(int playerSlot, void* transmitBits)
+    {
+        var args = new CheckTransmitEvent(playerSlot, (nint)transmitBits);
+        PluginLoader.DispatchCheckTransmit(args);
+    }
+
+    [UnmanagedCallersOnly]
     public static unsafe int OnAddModifier(void* modifierProp, void** pCaster, uint* pHAbility, int* pITeam, void* vdata, void* modifierParams, void* kv)
     {
         if (modifierProp == null || vdata == null)

@@ -21,6 +21,7 @@
 #include "Hooks/AddModifier.hpp"
 #include "Hooks/SendNetMessage.hpp"
 #include "Hooks/ReplyConnection.hpp"
+#include "Hooks/CheckTransmit.hpp"
 #include "A2SPatch.hpp"
 
 #include "../Memory/MemoryDataLoader.hpp"
@@ -40,6 +41,7 @@
 
 #include <icvar.h>
 #include <entity2/entitysystem.h>
+#include <iservernetworkable.h>
 
 IGameEventSystem *g_pGameEventSystem = nullptr;
 
@@ -99,6 +101,7 @@ void Deadworks::PostInit() {
 
     g_pSource2Server = reinterpret_cast<ISource2Server *>(InterfaceFactories.server(SOURCE2SERVER_INTERFACE_VERSION, nullptr));
     g_pSource2GameClients = reinterpret_cast<ISource2GameClients *>(InterfaceFactories.server(SOURCE2GAMECLIENTS_INTERFACE_VERSION, nullptr));
+    g_pSource2GameEntities = reinterpret_cast<ISource2GameEntities *>(InterfaceFactories.server(SOURCE2GAMEENTITIES_INTERFACE_VERSION, nullptr));
     g_pGameResourceServiceServer = reinterpret_cast<IGameResourceService *>(InterfaceFactories.engine2(GAMERESOURCESERVICESERVER_INTERFACE_VERSION, nullptr));
     g_pSchemaSystem = reinterpret_cast<ISchemaSystem *>(InterfaceFactories.schemasystem(SCHEMASYSTEM_INTERFACE_VERSION, nullptr));
     g_pNetworkMessages = reinterpret_cast<INetworkMessages *>(InterfaceFactories.networksystem(NETWORKMESSAGES_INTERFACE_VERSION, nullptr));
@@ -205,6 +208,22 @@ void Deadworks::PostInit() {
 
     hooks::g_GameEventSystemVmt = safetyhook::create_vmt(g_pGameEventSystem);
     hooks::g_PostEventAbstract = safetyhook::create_vm(hooks::g_GameEventSystemVmt, mem.GetVirtual("IGameEventSystem::PostEventAbstract").value(), &hooks::Hook_PostEventAbstract);
+
+    {
+        int idx = mem.GetVirtual("ISource2GameEntities::CheckTransmit").value();
+        auto **vtable = *reinterpret_cast<void ***>(g_pSource2GameEntities);
+        hooks::g_Source2GameEntities_CheckTransmit_Original = reinterpret_cast<hooks::CheckTransmitFn>(vtable[idx]);
+
+        DWORD oldProtect = 0;
+        if (VirtualProtect(&vtable[idx], sizeof(void *), PAGE_READWRITE, &oldProtect)) {
+            vtable[idx] = reinterpret_cast<void *>(&hooks::Hook_CheckTransmit);
+            VirtualProtect(&vtable[idx], sizeof(void *), oldProtect, &oldProtect);
+            g_Log->Info("Patched ISource2GameEntities vtable[{}] for CheckTransmit", idx);
+        } else {
+            g_Log->Error("VirtualProtect failed on ISource2GameEntities vtable - CheckTransmit unavailable");
+            hooks::g_Source2GameEntities_CheckTransmit_Original = nullptr;
+        }
+    }
 
     // Required feature hooks
     HookInline(hooks::g_BuildGameSessionManifest,
@@ -616,6 +635,20 @@ bool Deadworks::OnPre_AddModifier(void *modifierProp, CBaseEntity *&pCaster, uin
         return result >= 1;
     }
     return false;
+}
+
+void Deadworks::OnPost_CheckTransmit(CCheckTransmitInfo **ppInfoList, int nInfoCount) {
+    if (!m_managed.onCheckTransmit)
+        return;
+
+    for (int i = 0; i < nInfoCount; i++) {
+        auto *pInfo = ppInfoList[i];
+        if (!pInfo || !pInfo->m_pTransmitEntity)
+            continue;
+
+        int playerSlot = pInfo->m_nPlayerSlot.Get();
+        m_managed.onCheckTransmit(playerSlot, pInfo->m_pTransmitEntity);
+    }
 }
 
 void Deadworks::GetInterfaceFactories() {

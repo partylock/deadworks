@@ -24,6 +24,7 @@ class CBaseEntity;
 class CEntityInstance;
 class CTakeDamageResult;
 class CTakeDamageInfo;
+class CCheckTransmitInfo;
 
 extern IGameEventSystem *g_pGameEventSystem;
 
@@ -84,6 +85,8 @@ public:
     // AddModifier
     bool OnPre_AddModifier(void *modifierProp, CBaseEntity *&pCaster, uint32_t &hAbility, int &iTeam,
                            void *vdata, void *pParams, void *pKV);
+    // CheckTransmit - dispatches per-player to managed code
+    void OnPost_CheckTransmit(CCheckTransmitInfo **ppInfoList, int nInfoCount);
 
     template <typename T>
     T *GetEntity(CEntityIndex index) {

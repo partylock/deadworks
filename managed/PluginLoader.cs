@@ -485,6 +485,9 @@ internal static partial class PluginLoader
         }
     }
 
+    public static void DispatchCheckTransmit(CheckTransmitEvent args)
+        => DispatchToPlugins(p => p.OnCheckTransmit(args), nameof(IDeadworksPlugin.OnCheckTransmit));
+
     public static void UnloadAll()
     {
         ServerBrowser.Shutdown();
