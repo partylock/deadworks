@@ -1,25 +1,25 @@
 /* Radiance font - same as deadworks-web */
 @font-face {
   font-family: 'Radiance';
-  src: url('https://steamcdn-a.akamaihd.net/apps/underlords/fonts/Radiance-Regular.woff') format('woff');
+  src: url('/fonts/Radiance-Regular.woff') format('woff');
   font-weight: 400;
   font-style: normal;
 }
 @font-face {
   font-family: 'Radiance';
-  src: url('https://steamcdn-a.akamaihd.net/apps/underlords/fonts/Radiance-Semibold.woff') format('woff');
+  src: url('/fonts/Radiance-Semibold.woff') format('woff');
   font-weight: 500;
   font-style: normal;
 }
 @font-face {
   font-family: 'Radiance';
-  src: url('https://steamcdn-a.akamaihd.net/apps/underlords/fonts/Radiance-Bold.woff') format('woff');
+  src: url('/fonts/Radiance-Bold.woff') format('woff');
   font-weight: 700;
   font-style: normal;
 }
 @font-face {
   font-family: 'Radiance';
-  src: url('https://steamcdn-a.akamaihd.net/apps/underlords/fonts/Radiance-Black.woff') format('woff');
+  src: url('/fonts/Radiance-Black.woff') format('woff');
   font-weight: 900;
   font-style: normal;
 }
