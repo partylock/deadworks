@@ -13,6 +13,9 @@ public unsafe class CBaseEntity : NativeEntity {
 	/// <summary>Resolves the native pointer through the entity system on every access. Returns 0 if the entity has been destroyed (serial mismatch).</summary>
 	public override nint Handle => EntityHandle == InvalidEntityHandle ? 0 : (nint)NativeInterop.GetEntityFromHandle(EntityHandle);
 
+	/// <summary>True only if the entity still exists in the entity system. Returns false once the entity is destroyed (serial mismatch) or if the handle was never valid.</summary>
+	public override bool IsValid => EntityHandle != InvalidEntityHandle && NativeInterop.GetEntityFromHandle(EntityHandle) != null;
+
 	/// <summary>Entity index (lower 14 bits of the handle).</summary>
 	public int EntityIndex => EntityHandle == InvalidEntityHandle ? -1 : (int)(EntityHandle & 0x3FFF);
 
