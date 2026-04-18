@@ -476,15 +476,6 @@ internal static partial class PluginLoader
     public static HookResult DispatchAddModifier(AddModifierEvent args)
         => DispatchToPluginsWithResult(p => p.OnAddModifier(args), nameof(IDeadworksPlugin.OnAddModifier));
 
-    public static void DispatchSignonState(ref string addons)
-    {
-        foreach (var plugin in _pluginSnapshot)
-        {
-            try { plugin.OnSignonState(ref addons); }
-            catch (Exception ex) { Console.WriteLine($"[PluginLoader] {plugin.Name}.OnSignonState error: {ex.Message}"); }
-        }
-    }
-
     public static void DispatchCheckTransmit(CheckTransmitEvent args)
         => DispatchToPlugins(p => p.OnCheckTransmit(args), nameof(IDeadworksPlugin.OnCheckTransmit));
 

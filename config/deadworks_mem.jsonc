@@ -8,10 +8,6 @@
 			"library": "engine2.dll",
 			"windows": "40 53 48 83 EC 30 48 8B 02 48 8B D9"
 		},
-		"CServerSideClient::SendNetMessage": {
-			"library": "engine2.dll",
-			"windows": "48 89 5C 24 ?? 48 89 74 24 ?? 55 57 41 56 48 8D 6C 24 ?? 48 81 EC ?? ?? ?? ?? 33 FF"
-		},
 		"CNetworkGameServerBase::ReplyConnection": {
 			"library": "engine2.dll",
 			"windows": "48 8B C4 55 41 55 41 56"

@@ -135,9 +135,6 @@
     <ClCompile Include="src\Memory\MemoryDataLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\Core\Hooks\SendNetMessage.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\Core\Hooks\ReplyConnection.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -330,9 +327,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\SDK\CGameSceneNode.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Core\Hooks\SendNetMessage.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\Core\Hooks\ReplyConnection.hpp">

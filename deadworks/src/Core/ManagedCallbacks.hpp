@@ -33,7 +33,6 @@ struct ManagedCallbacks {
     using OnProcessUsercmdsFn = void(CORECLR_DELEGATE_CALLTYPE *)(int playerSlot, const uint8_t *batchBytes, int batchLen, int numCmds, uint8_t paused, float margin, uint8_t *outBatchBytes, int *outBatchLen);
     using OnAbilityAttemptFn = uint64_t(CORECLR_DELEGATE_CALLTYPE *)(int playerSlot, void *pawnEntity, uint64_t heldButtons, uint64_t changedButtons, uint64_t scrollButtons, uint64_t *outForcedButtons);
     using OnAddModifierFn = int(CORECLR_DELEGATE_CALLTYPE *)(void *modifierProp, void **pCaster, uint32_t *pHAbility, int32_t *pITeam, void *vdata, void *params, void *kv);
-    using OnSignonStateFn = void(CORECLR_DELEGATE_CALLTYPE *)(const uint8_t *protoBytes, int protoLen, uint8_t *outBytes, int *outLen);
     using OnCheckTransmitFn = void(CORECLR_DELEGATE_CALLTYPE *)(int playerSlot, void *transmitBits);
 
     OnStartupServerFn onStartupServer = nullptr;
@@ -59,7 +58,6 @@ struct ManagedCallbacks {
     OnProcessUsercmdsFn onProcessUsercmds = nullptr;
     OnAbilityAttemptFn onAbilityAttempt = nullptr;
     OnAddModifierFn onAddModifier = nullptr;
-    OnSignonStateFn onSignonState = nullptr;
     OnCheckTransmitFn onCheckTransmit = nullptr;
 };
 

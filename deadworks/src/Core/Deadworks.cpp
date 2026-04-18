@@ -19,7 +19,6 @@
 #include "Hooks/ProcessUsercmds.hpp"
 #include "Hooks/AbilityThink.hpp"
 #include "Hooks/AddModifier.hpp"
-#include "Hooks/SendNetMessage.hpp"
 #include "Hooks/ReplyConnection.hpp"
 #include "Hooks/CheckTransmit.hpp"
 #include "A2SPatch.hpp"
@@ -175,9 +174,6 @@ void Deadworks::PostInit() {
     HookInline(hooks::g_CServerSideClientBase_FilterMessage,
                "CServerSideClientBase::FilterMessage",
                &hooks::Hook_CServerSideClientBase_FilterMessage, true);
-    HookInline(hooks::g_CServerSideClient_SendNetMessage,
-               "CServerSideClient::SendNetMessage",
-               &hooks::Hook_CServerSideClient_SendNetMessage, true);
     HookInline(hooks::g_ReplyConnection,
                "CNetworkGameServerBase::ReplyConnection",
                &hooks::Hook_ReplyConnection, true);
@@ -381,49 +377,6 @@ bool Deadworks::OnPre_PostEventAbstract(int msgId, const CNetMessage *pData, uin
     }
 
     return result >= 1;
-}
-
-bool Deadworks::OnPre_SendNetMessage(CServerSideClientBase *client, const CNetMessage *pData) {
-    if (!m_managed.onSignonState || !pData)
-        return false;
-
-    auto *info = pData->GetSerializerPB()->GetNetMessageInfo();
-    if (!info || info->m_MessageId != 7) // net_SignonState
-        return false;
-
-    // CNetMessagePB inherits CNetMessage first, then PROTO_TYPE (multiple inheritance).
-    // SDK's As<T>() does static_cast<T*>(this) from CNetMessage* - valid downcast.
-    // const_cast is necessary because the SDK's As<T>() is non-const and we need to mutate.
-    // Use AsMessageLite + serialize/deserialize - we can't use generated C++ protobuf
-    // methods because our compiled protobuf layout doesn't match Valve's runtime.
-    auto *pb = const_cast<google::protobuf::MessageLite *>(pData->AsMessageLite());
-    if (!pb)
-        return false;
-
-    int size = static_cast<int>(pb->ByteSizeLong());
-    if (size <= 0)
-        return false;
-
-    std::vector<uint8_t> inBuf(size);
-    if (!pb->SerializeToArray(inBuf.data(), size))
-        return false;
-
-    g_Log->Info("[SignonState] before: {} bytes, proto={}", size, pb->DebugString());
-
-    static thread_local uint8_t outBuf[65536];
-    int outLen = 0;
-
-    m_managed.onSignonState(inBuf.data(), size, outBuf, &outLen);
-
-    if (outLen > 0) {
-        pb->Clear();
-        pb->ParseFromArray(outBuf, outLen);
-        g_Log->Info("[SignonState] after: {} bytes, proto={}", pb->ByteSizeLong(), pb->DebugString());
-    } else {
-        g_Log->Info("[SignonState] no modification from managed");
-    }
-
-    return false;
 }
 
 static constexpr ptrdiff_t kServerAddonsOffset = 0x158;

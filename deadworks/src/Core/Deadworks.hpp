@@ -57,8 +57,6 @@ public:
     int OnPre_GameEvent(const char *eventName, void *eventPtr);
     // Net Messages (outgoing - broadcast via game event system)
     bool OnPre_PostEventAbstract(int msgId, const CNetMessage *pData, uint64 *clientsMask);
-    // Net Messages (outgoing - per-client via SendNetMessage, catches SignonState etc.)
-    bool OnPre_SendNetMessage(CServerSideClientBase *client, const CNetMessage *pData);
     // ReplyConnection - temporarily inject addons into the server object
     void OnPre_ReplyConnection(void *server, CServerSideClientBase *client);
     void OnPost_ReplyConnection(void *server, CServerSideClientBase *client);
