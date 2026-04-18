@@ -22,19 +22,19 @@ export default function Titlebar() {
         </div>
         <div className={styles.windowControls}>
           <button onClick={minimizeWindow} className={styles.winBtn} aria-label="Minimize">
-            <svg width="10" height="1" viewBox="0 0 10 1">
-              <rect width="10" height="1" fill="currentColor" />
+            <svg width="10" height="10" viewBox="0 0 10 10" shapeRendering="crispEdges">
+              <rect y="4" width="10" height="1" fill="currentColor" />
             </svg>
           </button>
           <button onClick={toggleMaximize} className={styles.winBtn} aria-label="Maximize">
-            <svg width="10" height="10" viewBox="0 0 10 10">
-              <rect width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1" />
+            <svg width="10" height="10" viewBox="0 0 10 10" shapeRendering="crispEdges">
+              <path d="M0.5 0.5 H9.5 V9.5 H0.5 Z" fill="none" stroke="currentColor" strokeWidth="1" />
             </svg>
           </button>
           <button onClick={closeWindow} className={cn(styles.winBtn, styles.winClose)} aria-label="Close">
             <svg width="10" height="10" viewBox="0 0 10 10">
-              <line x1="0" y1="0" x2="10" y2="10" stroke="currentColor" strokeWidth="1.2" />
-              <line x1="10" y1="0" x2="0" y2="10" stroke="currentColor" strokeWidth="1.2" />
+              <line x1="0.5" y1="0.5" x2="9.5" y2="9.5" stroke="currentColor" strokeWidth="1" strokeLinecap="square" />
+              <line x1="9.5" y1="0.5" x2="0.5" y2="9.5" stroke="currentColor" strokeWidth="1" strokeLinecap="square" />
             </svg>
           </button>
         </div>
