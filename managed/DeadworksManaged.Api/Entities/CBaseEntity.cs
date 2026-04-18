@@ -4,9 +4,31 @@ namespace DeadworksManaged.Api;
 
 /// <summary>Base managed wrapper for all Source 2 entities. Provides common operations: health, team, lifecycle, modifiers, schema access.</summary>
 public unsafe class CBaseEntity : NativeEntity {
-	internal CBaseEntity(nint handle) : base(handle) { }
+	/// <summary>Sentinel value for an invalid CEntityHandle.</summary>
+	public const uint InvalidEntityHandle = 0xFFFFFFFF;
 
-	public override string ToString() => IsValid ? $"{Classname} ({DesignerName}) [0x{Handle:X}]" : "CBaseEntity [null]";
+	/// <summary>Packed CEntityHandle (serial + index) captured at construction. Stable identity across frames.</summary>
+	public uint EntityHandle { get; }
+
+	/// <summary>Resolves the native pointer through the entity system on every access. Returns 0 if the entity has been destroyed (serial mismatch).</summary>
+	public override nint Handle => EntityHandle == InvalidEntityHandle ? 0 : (nint)NativeInterop.GetEntityFromHandle(EntityHandle);
+
+	/// <summary>Entity index (lower 14 bits of the handle).</summary>
+	public int EntityIndex => EntityHandle == InvalidEntityHandle ? -1 : (int)(EntityHandle & 0x3FFF);
+
+	internal CBaseEntity(nint ptr) : base() {
+		EntityHandle = ptr != 0 ? NativeInterop.GetEntityHandle((void*)ptr) : InvalidEntityHandle;
+	}
+
+	/// <summary>Construct directly from a packed entity handle without a pointer round-trip.</summary>
+	internal CBaseEntity(uint entityHandle) : base() {
+		EntityHandle = entityHandle;
+	}
+
+	public override string ToString() {
+		nint h = Handle;
+		return h != 0 ? $"{Classname} ({DesignerName}) [0x{h:X}]" : "CBaseEntity [null]";
+	}
 
 	/// <summary>Creates a new entity by class name (e.g. "info_particle_system"). Returns null on failure.</summary>
 	public static CBaseEntity? CreateByName(string className) {
@@ -52,9 +74,9 @@ public unsafe class CBaseEntity : NativeEntity {
 
 	/// <summary>Gets an entity by its entity handle (CEntityHandle as uint32). Returns null if invalid.</summary>
 	public static CBaseEntity? FromHandle(uint handle) {
-		if (handle == 0xFFFFFFFF) return null;
+		if (handle == InvalidEntityHandle) return null;
 		var ptr = (nint)NativeInterop.GetEntityFromHandle(handle);
-		return ptr != 0 ? new CBaseEntity(ptr) : null;
+		return ptr != 0 ? new CBaseEntity(handle) : null;
 	}
 
 	/// <summary>Gets an entity by its global entity index. Returns null if the index is invalid or the entity doesn't exist.</summary>
@@ -65,10 +87,10 @@ public unsafe class CBaseEntity : NativeEntity {
 
 	/// <summary>Gets a typed entity by handle. Returns null if invalid or native class doesn't match T.</summary>
 	public static T? FromHandle<T>(uint handle) where T : CBaseEntity {
-		if (handle == 0xFFFFFFFF) return null;
+		if (handle == InvalidEntityHandle) return null;
 		var ptr = (nint)NativeInterop.GetEntityFromHandle(handle);
 		if (ptr == 0) return null;
-		var entity = new CBaseEntity(ptr);
+		var entity = new CBaseEntity(handle);
 		return NativeEntityFactory.IsMatch<T>(entity.Classname) ? NativeEntityFactory.Create<T>(ptr) : null;
 	}
 
@@ -121,12 +143,6 @@ public unsafe class CBaseEntity : NativeEntity {
 
 	/// <summary>Marks this entity for removal at the end of the current frame (UTIL_Remove).</summary>
 	public void Remove() => NativeInterop.RemoveEntity((void*)Handle);
-
-	/// <summary>Gets the entity handle (CEntityHandle as uint32) for this entity.</summary>
-	public uint EntityHandle => NativeInterop.GetEntityHandle((void*)Handle);
-
-	/// <summary>Gets the entity index (lower 14 bits of the handle).</summary>
-	public int EntityIndex => (int)(EntityHandle & 0x3FFF);
 
 	/// <summary>Queues and executes entity spawn.</summary>
 	public void Spawn() {
