@@ -25,6 +25,11 @@ public unsafe class CBasePlayerController : CBaseEntity {
 		}
 	}
 
+    private static readonly SchemaAccessor<ulong> _playerSteamId = new("CBasePlayerController"u8, "m_steamID"u8);
+
+    /// <summary>The player's SteamID64</summary>
+    public ulong PlayerSteamId  => _playerSteamId.Get(Handle);
+
 	/// <summary>Assigns a new pawn to this controller, optionally transferring team and movement state.</summary>
 	public void SetPawn(CBasePlayerPawn? pawn, bool retainOldPawnTeam = false, bool copyMovementState = false, bool allowTeamMismatch = false, bool preserveMovementState = false) {
 		NativeInterop.SetPawn((void*)Handle, pawn != null ? (void*)pawn.Handle : null,
