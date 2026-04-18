@@ -77,7 +77,6 @@ internal static unsafe class NativeInterop
 	public static delegate* unmanaged[Cdecl]<void*, byte*, ushort, void*> AddAbility => (delegate* unmanaged[Cdecl]<void*, byte*, ushort, void*>)_cb.AddAbility;
 	public static delegate* unmanaged[Cdecl]<void*, byte*, int, void*> AddItem => (delegate* unmanaged[Cdecl]<void*, byte*, int, void*>)_cb.AddItem;
 	public static delegate* unmanaged[Cdecl]<void*, byte*, byte, byte, byte> SellItem => (delegate* unmanaged[Cdecl]<void*, byte*, byte, byte, byte>)_cb.SellItem;
-	public static delegate* unmanaged[Cdecl]<void*, void*, void*, void*, float, int, void> HurtEntity => (delegate* unmanaged[Cdecl]<void*, void*, void*, void*, float, int, void>)_cb.HurtEntity;
 	public static delegate* unmanaged[Cdecl]<void*, void*, void*, float, int, void*> CreateDamageInfo => (delegate* unmanaged[Cdecl]<void*, void*, void*, float, int, void*>)_cb.CreateDamageInfo;
 	public static delegate* unmanaged[Cdecl]<void*, void> DestroyDamageInfo => (delegate* unmanaged[Cdecl]<void*, void>)_cb.DestroyDamageInfo;
 	public static delegate* unmanaged[Cdecl]<void*, void*, void> TakeDamage => (delegate* unmanaged[Cdecl]<void*, void*, void>)_cb.TakeDamage;

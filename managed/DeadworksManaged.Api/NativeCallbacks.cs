@@ -77,7 +77,6 @@ internal struct NativeCallbacks
 	public nint AddAbility;
 	public nint AddItem;
 	public nint SellItem;
-	public nint HurtEntity;
 	public nint CreateDamageInfo;
 	public nint DestroyDamageInfo;
 	public nint TakeDamage;

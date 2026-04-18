@@ -87,7 +87,6 @@ struct NativeCallbacks {
     void *(__cdecl *AddAbility)(void *pawn, const char *abilityName, uint16_t slot);
     void *(__cdecl *AddItem)(void *pawn, const char *itemName, int32_t upgradeTier);
     uint8_t(__cdecl *SellItem)(void *pawn, const char *itemName, uint8_t bFullRefund, uint8_t bForceSellPrice);
-    void(__cdecl *HurtEntity)(void *victim, void *attacker, void *inflictor, void *ability, float damage, int32_t damageType);
     void *(__cdecl *CreateDamageInfo)(void *inflictor, void *attacker, void *ability, float damage, int32_t damageType);
     void(__cdecl *DestroyDamageInfo)(void *info);
     void(__cdecl *TakeDamage)(void *victim, void *info);

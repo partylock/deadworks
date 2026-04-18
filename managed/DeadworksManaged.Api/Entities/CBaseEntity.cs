@@ -336,14 +336,11 @@ public unsafe class CBaseEntity : NativeEntity {
 		}
 	}
 
-	/// <summary>Applies damage to this entity using UTIL_InflictGenericDamage (convenience wrapper around <see cref="TakeDamage"/>).</summary>
+	/// <summary>Applies damage to this entity (convenience wrapper around <see cref="TakeDamage"/>).</summary>
 	public void Hurt(float damage, CBaseEntity? attacker = null, CBaseEntity? inflictor = null, CBaseEntity? ability = null, int damageType = 0) {
-		NativeInterop.HurtEntity(
-			(void*)Handle,
-			attacker != null ? (void*)attacker.Handle : null,
-			inflictor != null ? (void*)inflictor.Handle : null,
-			ability != null ? (void*)ability.Handle : null,
-			damage, damageType);
+		using var info = new CTakeDamageInfo(damage, attacker ?? inflictor ?? this, inflictor ?? this, ability, damageType);
+		info.DamageFlags |= TakeDamageFlags.AllowSuicide;
+		TakeDamage(info);
 	}
 
 	/// <summary>Applies damage to this entity using an existing <see cref="CTakeDamageInfo"/> struct.</summary>
