@@ -2,6 +2,7 @@ mod addons;
 mod connect;
 mod gameinfo;
 mod ping;
+mod telemetry;
 
 /// Try to patch gameinfo.gi at startup. If the game is running the file is
 /// locked, so we just log and move on — the user will be told at connect time.
@@ -65,6 +66,8 @@ pub fn run() {
                         connect::set_game_dir_override(Some(std::path::PathBuf::from(path)));
                     }
                 }
+                telemetry::maybe_send_install(&app_handle);
+                telemetry::maybe_send_heartbeat(&app_handle);
             });
 
             let show = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;

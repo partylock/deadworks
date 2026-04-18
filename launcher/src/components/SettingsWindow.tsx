@@ -34,7 +34,7 @@ function SettingRow({
 }
 
 export default function SettingsWindow() {
-  const { apiEndpoint, setApiEndpoint } = useSettings();
+  const { apiEndpoint, setApiEndpoint, telemetryEnabled, setTelemetryEnabled } = useSettings();
   const [activeSection, setActiveSection] = useState("general");
   const [autostart, setAutostart] = useState(false);
   const [detectedPath, setDetectedPath] = useState<string | null>(null);
@@ -214,6 +214,23 @@ export default function SettingsWindow() {
                     onClick={() => emitTo("main", "check-for-updates")}
                   >
                     Check Now
+                  </button>
+                }
+              />
+
+              <div className={styles.sectionSubtitle}>Privacy</div>
+
+              <SettingRow
+                title="Share anonymous usage"
+                description="Sends a random ID, app version, and OS so we can see install counts and daily active users. No personal data. Toggle off to disable."
+                control={
+                  <button
+                    className={cn(styles.toggle, telemetryEnabled && styles.toggleOn)}
+                    onClick={() => setTelemetryEnabled(!telemetryEnabled)}
+                    role="switch"
+                    aria-checked={telemetryEnabled}
+                  >
+                    <span className={styles.toggleThumb} />
                   </button>
                 }
               />
