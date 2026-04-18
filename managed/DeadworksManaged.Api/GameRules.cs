@@ -27,6 +27,7 @@ public static unsafe class GameRules
 	private static readonly SchemaAccessor<float> _nextMidBossSpawnTime = new("CCitadelGameRules"u8, "m_tNextMidBossSpawnTime"u8);
 	private static readonly SchemaAccessor<float> _matchClockAtLastUpdate = new("CCitadelGameRules"u8, "m_flMatchClockAtLastUpdate"u8);
 	private static readonly SchemaAccessor<ulong> _matchID = new("CCitadelGameRules"u8, "m_unMatchID"u8);
+	private static readonly SchemaAccessor<byte> _serverPaused = new("CCitadelGameRules"u8, "m_bServerPaused"u8);
 
 	// CGameRules fields
 	private static readonly SchemaAccessor<byte> _gamePaused = new("CGameRules"u8, "m_bGamePaused"u8);
@@ -55,6 +56,7 @@ public static unsafe class GameRules
 	public static float NextMidBossSpawnTime => _gameRulesPtr != 0 ? _nextMidBossSpawnTime.Get(_gameRulesPtr) : 0f;
 	public static float MatchClockAtLastUpdate => _gameRulesPtr != 0 ? _matchClockAtLastUpdate.Get(_gameRulesPtr) : 0f;
 	public static ulong MatchID => _gameRulesPtr != 0 ? _matchID.Get(_gameRulesPtr) : 0;
+	public static bool ServerPaused => _gameRulesPtr != 0 && _serverPaused.Get(_gameRulesPtr) != 0;
 
 	// CGameRules
 
