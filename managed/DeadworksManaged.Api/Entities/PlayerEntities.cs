@@ -417,14 +417,15 @@ public sealed unsafe class CCitadelPlayerPawn : CBasePlayerPawn {
 	/// <summary>
 	/// Gives an item to this pawn by internal item name (e.g. "upgrade_sprint_booster").
 	/// <param name="itemName">Internal item name.</param>
-	/// <param name="upgradeTier">Upgrade tier (0-based). Pass -1 for the base version.
-	/// Items with the same name can exist at different upgrade tiers - this controls which version is created.</param>
+	/// <param name="enhanced">Should the enhanced version of the item be given</param>
 	/// Returns the new item entity, or null on failure.
 	/// </summary>
-	public CBaseEntity? AddItem(string itemName, int upgradeTier = -1) {
+	public CBaseEntity? AddItem(string itemName, bool enhanced = false) {
 		Span<byte> utf8 = Utf8.Encode(itemName, stackalloc byte[Utf8.Size(itemName)]);
 		fixed (byte* ptr = utf8) {
-			void* result = NativeInterop.AddItem((void*)Handle, ptr, upgradeTier);
+			var bits = UpgradeFlags.Owned;
+			if (enhanced) bits |= UpgradeFlags.Enhanced;
+			void* result = NativeInterop.AddItem((void*)Handle, ptr, (int)bits);
 			return result != null ? new CBaseEntity((nint)result) : null;
 		}
 	}

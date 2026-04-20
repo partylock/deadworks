@@ -316,9 +316,9 @@ static void *__cdecl NativeAddAbility(void *pawn, const char *abilityName, uint1
     return comp->CreateAndRegisterAbility(def, slot);
 }
 
-static void *__cdecl NativeAddItem(void *pawn, const char *itemName, int32_t upgradeTier) {
+static void *__cdecl NativeAddItem(void *pawn, const char *itemName, int nInitialUpgradeBits) {
     if (!pawn || !itemName) return nullptr;
-    return static_cast<CCitadelPlayerPawn *>(pawn)->AddItem(itemName, 0, upgradeTier);
+    return static_cast<CCitadelPlayerPawn *>(pawn)->AddItem(itemName, nInitialUpgradeBits, -1);
 }
 
 static uint8_t __cdecl NativeSellItem(void *pawn, const char *itemName, uint8_t bFullRefund, uint8_t bForceSellPrice) {
