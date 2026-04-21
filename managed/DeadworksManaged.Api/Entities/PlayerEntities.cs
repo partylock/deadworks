@@ -252,6 +252,26 @@ public unsafe class CCitadelAbilityComponent : NativeEntity {
 	}
 }
 
+/// <summary>Wraps CitadelHeroSpawnData_t - per-spawn hero state including the resolved hero ID.</summary>
+public unsafe class CitadelHeroSpawnData : NativeEntity {
+	private static ReadOnlySpan<byte> Class => "CitadelHeroSpawnData_t"u8;
+
+	internal CitadelHeroSpawnData(nint handle) : base(handle) { }
+
+	private static readonly SchemaAccessor<uint> _nHeroID = new(Class, "m_nHeroID"u8);
+	public uint HeroID { get => _nHeroID.Get(Handle); set => _nHeroID.Set(Handle, value); }
+}
+
+/// <summary>Hero component on a player pawn. Exposes the inline spawn data for the current hero.</summary>
+public unsafe class CCitadelHeroComponent : NativeEntity {
+	private static ReadOnlySpan<byte> Class => "CCitadelHeroComponent"u8;
+
+	internal CCitadelHeroComponent(nint handle) : base(handle) { }
+
+	private static readonly SchemaAccessor<byte> _spawnedHero = new(Class, "m_spawnedHero"u8);
+	public CitadelHeroSpawnData SpawnedHero => new(_spawnedHero.GetAddress(Handle));
+}
+
 /// <summary>Base class for all Deadlock abilities (hero abilities, items, innates, etc.).</summary>
 [NativeClass("CCitadelBaseAbility")]
 public unsafe class CCitadelBaseAbility : CBaseEntity {
@@ -338,6 +358,11 @@ public sealed unsafe class CCitadelPlayerPawn : CBasePlayerPawn {
 
 	private static readonly SchemaAccessor<byte> _abilityComp = new("CCitadelPlayerPawn"u8, "m_CCitadelAbilityComponent"u8);
 	public CCitadelAbilityComponent AbilityComponent => new(_abilityComp.GetAddress(Handle));
+
+	private static readonly SchemaAccessor<byte> _heroComp = new("CCitadelPlayerPawn"u8, "m_CCitadelHeroComponent"u8);
+	public CCitadelHeroComponent HeroComponent => new(_heroComp.GetAddress(Handle));
+
+	public Heroes HeroID => (Heroes)HeroComponent.SpawnedHero.HeroID;
 
 	private static readonly SchemaAccessor<bool> _inRegenZone = new("CCitadelPlayerPawn"u8, "m_bInRegenerationZone"u8);
 	public bool InRegenerationZone => _inRegenZone.Get(Handle);
