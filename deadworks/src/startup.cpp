@@ -60,7 +60,7 @@ int main(int argc, char **argv) {
     // todo abstract
     deadworks::hooks::g_OnAppSystemLoaded = safetyhook::create_inline(onAppSystemLoaded.value(), deadworks::hooks::Hook_OnAppSystemLoaded);
 
-    constexpr auto DEFAULT_CMD_LINE = "-dedicated -console -dev -insecure -allow_no_lobby_connect +tv_citadel_auto_record 0 +spec_replay_enable 0 +tv_enable 0 +citadel_upload_replay_enabled 0 +hostport 27015 +map dl_midtown"sv;
+    constexpr auto DEFAULT_CMD_LINE = "-dedicated -console -dev -insecure -allow_no_lobby_connect +tv_citadel_auto_record 0 +spec_replay_enable 0 +tv_enable 0 +citadel_upload_replay_enabled 0 +hostport 27067 +map dl_midtown"sv;
 
     std::string cmdLine;
     if (argc > 1) {
