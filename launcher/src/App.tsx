@@ -3,12 +3,16 @@ import { invoke } from "@tauri-apps/api/core";
 import Titlebar from "@/components/Titlebar";
 import ServersPage from "@/components/ServersPage";
 import UpdateManager from "@/components/UpdateManager";
+import ConnectDialog from "@/components/ConnectDialog";
+import DeepLinkErrorDialog from "@/components/DeepLinkErrorDialog";
 import { useSettings } from "@/hooks/use-settings";
+import { useDeepLink } from "@/hooks/use-deep-link";
 import { getStore } from "@/lib/tauri";
 import styles from "./App.module.css";
 
 export default function App() {
   const settings = useSettings();
+  const { request, clear } = useDeepLink(settings.apiUrl);
 
   // On first launch, enable autostart by default
   useEffect(() => {
@@ -28,6 +32,21 @@ export default function App() {
       <main className={styles.main}>
         <ServersPage apiUrl={settings.apiUrl} />
       </main>
+      {request?.server && (
+        <ConnectDialog
+          key={request.requestId}
+          server={request.server}
+          apiUrl={settings.apiUrl}
+          onClose={clear}
+        />
+      )}
+      {request?.error && (
+        <DeepLinkErrorDialog
+          key={`err-${request.requestId}`}
+          message={request.error}
+          onClose={clear}
+        />
+      )}
       <UpdateManager />
     </>
   );

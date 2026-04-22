@@ -50,6 +50,11 @@
       "endpoints": [
         "https://api.deadworks.net/update/{{target}}/{{arch}}/{{current_version}}"
       ]
+    },
+    "deep-link": {
+      "desktop": {
+        "schemes": ["deadworks"]
+      }
     }
   }
 }

@@ -1,5 +1,6 @@
 mod addons;
 mod connect;
+mod deep_link;
 mod gameinfo;
 mod ping;
 mod telemetry;
@@ -35,6 +36,15 @@ pub fn run() {
     patch_gameinfo_on_startup();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            for arg in &args {
+                if arg.starts_with("deadworks://") {
+                    deep_link::dispatch(app, deep_link::parse_url(arg));
+                }
+            }
+            deep_link::surface_main_window(app);
+        }))
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
@@ -44,6 +54,7 @@ pub fn run() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
         ))
+        .manage(deep_link::DeepLinkStateContainer::new())
         .invoke_handler(tauri::generate_handler![
             connect::launch_deadlock,
             connect::get_detected_game_dir,
@@ -52,11 +63,27 @@ pub fn run() {
             connect::reset_game_dir,
             addons::prepare_and_connect,
             ping::ping_server,
+            deep_link::deep_link_ready,
         ])
         .setup(|app| {
             use tauri::menu::{Menu, MenuItem};
             use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
             use tauri::Manager;
+            use tauri_plugin_deep_link::DeepLinkExt;
+
+            // Register the deadworks:// scheme at runtime for dev / portable runs.
+            // Bundled installers (MSI/NSIS) write the registry entry at install time
+            // via tauri.conf.json, so this is a no-op for packaged builds.
+            #[cfg(any(target_os = "linux", target_os = "windows"))]
+            let _ = app.deep_link().register("deadworks");
+
+            let handle = app.handle().clone();
+            app.deep_link().on_open_url(move |event| {
+                for url in event.urls() {
+                    deep_link::dispatch(&handle, deep_link::parse_url(url.as_str()));
+                }
+                deep_link::surface_main_window(&handle);
+            });
 
             // Restore game directory override from persisted settings
             let app_handle = app.handle().clone();
