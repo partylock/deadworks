@@ -33,7 +33,7 @@ export default function ConnectDialog({ server, apiUrl, onClose }: ConnectDialog
           setStatus(`Downloading ${p.name}... ${pct}% (${p.item_index + 1}/${p.total_items})`);
           setProgress(pct);
         } else if (p.status === "decompressing") {
-          const pct = p.total_bytes > 0 ? Math.round((p.bytes_downloaded / p.total_bytes) * 100) : 0;
+          const pct = p.total_bytes > 0 ? Math.min(100, Math.round((p.bytes_downloaded / p.total_bytes) * 100)) : 0;
           setStatus(`Decompressing ${p.name}... ${pct}% (${p.item_index + 1}/${p.total_items})`);
           setProgress(pct);
         } else if (p.status === "ready") {
