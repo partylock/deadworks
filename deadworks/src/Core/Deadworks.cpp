@@ -41,6 +41,8 @@
 #include <icvar.h>
 #include <entity2/entitysystem.h>
 #include <iservernetworkable.h>
+#include <interfaces/interfaces.h>
+#include <soundsystem/isoundsystem.h>
 
 IGameEventSystem *g_pGameEventSystem = nullptr;
 
@@ -107,6 +109,12 @@ void Deadworks::PostInit() {
     g_pGameEventSystem = reinterpret_cast<IGameEventSystem *>(InterfaceFactories.engine2(GAMEEVENTSYSTEM_INTERFACE_VERSION, nullptr));
     g_pCVar = reinterpret_cast<ICvar *>(InterfaceFactories.tier0(CVAR_INTERFACE_VERSION, nullptr));
     g_pFullFileSystem = reinterpret_cast<IFileSystem *>(InterfaceFactories.filesystem_stdio(FILESYSTEM_INTERFACE_VERSION, nullptr));
+    g_pSoundSystem = reinterpret_cast<ISoundSystem *>(InterfaceFactories.soundsystem(SOUNDSYSTEM_INTERFACE_VERSION, nullptr));
+
+    if (!g_pSoundSystem) {
+		g_Log->Error("Failed to load ISoundSystem. Abandoning ship!");
+		return;
+    }
 
     if (!g_pSource2Server) {
         g_Log->Error("Failed to load ISource2Server. Abandoning ship!");
@@ -611,6 +619,7 @@ void Deadworks::GetInterfaceFactories() {
     Module networksystem("networksystem");
     Module tier0("tier0");
     Module filesystem_stdio("filesystem_stdio");
+    Module soundsystem("soundsystem");
 
     InterfaceFactories.server = server.GetSymbol<CreateInterfaceFn>("CreateInterface");
     InterfaceFactories.engine2 = engine2.GetSymbol<CreateInterfaceFn>("CreateInterface");
@@ -618,5 +627,6 @@ void Deadworks::GetInterfaceFactories() {
     InterfaceFactories.networksystem = networksystem.GetSymbol<CreateInterfaceFn>("CreateInterface");
     InterfaceFactories.tier0 = tier0.GetSymbol<CreateInterfaceFn>("CreateInterface");
     InterfaceFactories.filesystem_stdio = filesystem_stdio.GetSymbol<CreateInterfaceFn>("CreateInterface");
+    InterfaceFactories.soundsystem = soundsystem.GetSymbol<CreateInterfaceFn>("CreateInterface");
 }
 } // namespace deadworks

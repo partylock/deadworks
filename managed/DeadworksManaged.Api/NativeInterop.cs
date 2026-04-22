@@ -109,4 +109,5 @@ internal static unsafe class NativeInterop
 	public static delegate* unmanaged[Cdecl]<void*, byte*, byte*, void> EKVSetStringToken => (delegate* unmanaged[Cdecl]<void*, byte*, byte*, void>)_cb.EKVSetStringToken;
 	public static delegate* unmanaged[Cdecl]<byte*, uint*, byte*> ResolveDesignerName => (delegate* unmanaged[Cdecl]<byte*, uint*, byte*>)_cb.ResolveDesignerName;
 	public static delegate* unmanaged[Cdecl]<int, uint, void*> LookupVDataByHash => (delegate* unmanaged[Cdecl]<int, uint, void*>)_cb.LookupVDataByHash;
+	public static delegate* unmanaged[Cdecl]<uint> TakeSoundEventGuid => (delegate* unmanaged[Cdecl]<uint>)_cb.TakeSoundEventGuid;
 }

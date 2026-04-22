@@ -106,6 +106,7 @@ private:
         CreateInterfaceFn networksystem;
         CreateInterfaceFn tier0;
         CreateInterfaceFn filesystem_stdio;
+        CreateInterfaceFn soundsystem;
     } InterfaceFactories;
 
     bool m_clientFullyConnected[64]{};

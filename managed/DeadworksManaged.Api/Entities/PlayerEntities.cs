@@ -11,6 +11,13 @@ public unsafe class CBasePlayerController : CBaseEntity {
 	/// <summary>The 0-based player slot index for this controller (<see cref="CBaseEntity.EntityIndex"/> minus 1).</summary>
 	public int Slot => EntityIndex - 1;
 
+	/// <summary>A <see cref="RecipientFilter"/> targeting just this player.</summary>
+	public RecipientFilter Recipients => RecipientFilter.Single(Slot);
+
+	/// <summary>Plays a soundevent to just this player at their listener position. Returns the soundevent GUID.</summary>
+	public uint PlaySound(string name, float volume = 1f, float pitch = 1f)
+		=> Sounds.Sounds.Play(name, Recipients, volume, pitch);
+
 	private static readonly SchemaAccessor<byte> _playerName = new("CBasePlayerController"u8, "m_iszPlayerName"u8);
 
 	/// <summary>The player's display name (char[128] inline buffer).</summary>

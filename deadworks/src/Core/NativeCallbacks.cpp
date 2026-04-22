@@ -11,8 +11,10 @@
 #include "Hooks/PostEventAbstract.hpp"
 #include "Hooks/BuildGameSessionManifest.hpp"
 
-#include "Hooks/TraceShape.hpp" // for g_pPhysicsQuery
+#include "Hooks/TraceShape.hpp"
 #include "../Memory/MemoryDataLoader.hpp"
+#include "../Lib/Virtual.hpp"
+#include <interfaces/interfaces.h>
 #include "../SDK/CBaseEntity.hpp"
 #include "../SDK/CCitadelPlayerController.hpp"
 #include "../SDK/CEntitySystem.hpp"
@@ -857,6 +859,19 @@ static uint8_t __cdecl NativeHasCommandLineParm(const char *parm) {
     return CommandLine()->HasParm(CUtlStringToken(parm, static_cast<int>(strlen(parm)))) ? 1 : 0;
 }
 
+static uint32_t __cdecl NativeTakeSoundEventGuid() {
+    if (!g_pSoundSystem)
+        return 0;
+
+    auto idx = MemoryDataLoader::Get().GetVirtual("CSoundSystem::TakeGuid");
+    if (!idx || *idx <= 0)
+        return 0;
+
+    uint32_t guid = 0;
+    CallVirtual<void>(g_pSoundSystem, static_cast<uint32_t>(*idx), &guid);
+    return guid;
+}
+
 // ---------------------------------------------------------------------------
 // Resolve statics that PostInit needs
 // ---------------------------------------------------------------------------
@@ -998,4 +1013,7 @@ void deadworks::PopulateNativeCallbacks(NativeCallbacks &callbacks) {
     // Subclass resolution
     callbacks.ResolveDesignerName = &NativeResolveDesignerName;
     callbacks.LookupVDataByHash = &NativeLookupVDataByHash;
+
+    // Sound events
+    callbacks.TakeSoundEventGuid = &NativeTakeSoundEventGuid;
 }

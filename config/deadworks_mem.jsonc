@@ -196,6 +196,7 @@
 		"CBaseEntity::StartTouch": 148,
 		"CBaseEntity::Touch": 149,
 		"CBaseEntity::EndTouch": 150,
-		"ISource2GameEntities::CheckTransmit": 12
+		"ISource2GameEntities::CheckTransmit": 12,
+		"CSoundSystem::TakeGuid": 77
 	}
 }
