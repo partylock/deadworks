@@ -8,6 +8,9 @@ namespace DeadworksManaged.Api;
 public unsafe class CBasePlayerController : CBaseEntity {
 	internal CBasePlayerController(nint handle) : base(handle) { }
 
+	/// <summary>The 0-based player slot index for this controller (<see cref="CBaseEntity.EntityIndex"/> minus 1).</summary>
+	public int Slot => EntityIndex - 1;
+
 	private static readonly SchemaAccessor<byte> _playerName = new("CBasePlayerController"u8, "m_iszPlayerName"u8);
 
 	/// <summary>The player's display name (char[128] inline buffer).</summary>
@@ -70,7 +73,7 @@ public sealed unsafe class CCitadelPlayerController : CBasePlayerController {
 
 	/// <summary>Sends a message to this player's console via "echo" client command.</summary>
 	public void PrintToConsole(string message) {
-		Server.ClientCommand(EntityIndex, $"echo {message}");
+		Server.ClientCommand(Slot, $"echo {message}");
 	}
 
 	/// <summary>Sends a message to all connected players' consoles.</summary>
