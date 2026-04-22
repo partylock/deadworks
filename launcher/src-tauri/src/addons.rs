@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 use tokio::io::AsyncWriteExt;
 
 const DEFAULT_API_URL: &str = match std::option_env!("DEADWORKS_API_URL") {
@@ -13,6 +13,9 @@ const DEFAULT_API_URL: &str = match std::option_env!("DEADWORKS_API_URL") {
 };
 
 const VPK_MAGIC: [u8; 4] = [0x34, 0x12, 0xAA, 0x55]; // 0x55aa1234 LE
+
+/// Hard cap on decompressed VPK size (4 GiB) to bound bz2-bomb damage.
+const MAX_VPK_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 
 // ── Types ──
 
@@ -51,6 +54,31 @@ struct VersionEntry {
 struct VersionsState {
     #[serde(default)]
     managed: HashMap<String, VersionEntry>, // filename → entry
+}
+
+// ── Validation ──
+
+/// Reject filenames that could cause path traversal or absolute writes. Only
+/// a single path component with no reserved characters is allowed.
+fn validate_filename(name: &str) -> Result<(), String> {
+    if name.is_empty() {
+        return Err("empty filename".into());
+    }
+    if name.len() > 128 {
+        return Err(format!("filename too long: {}", name));
+    }
+    if name == "." || name == ".." {
+        return Err(format!("invalid filename: {}", name));
+    }
+    for c in name.chars() {
+        match c {
+            '/' | '\\' | ':' | '\0' | '*' | '?' | '"' | '<' | '>' | '|' => {
+                return Err(format!("filename contains reserved character: {}", name));
+            }
+            _ => {}
+        }
+    }
+    Ok(())
 }
 
 // ── Helpers ──
@@ -113,11 +141,7 @@ fn verify_vpk_magic(path: &Path) -> Result<(), String> {
         .map_err(|e| format!("Failed to open {} for magic check: {}", path.display(), e))?;
     let mut buf = [0u8; 4];
     f.read_exact(&mut buf).map_err(|e| {
-        format!(
-            "Failed to read VPK magic from {}: {}",
-            path.display(),
-            e
-        )
+        format!("Failed to read VPK magic from {}: {}", path.display(), e)
     })?;
     if buf != VPK_MAGIC {
         return Err(format!(
@@ -140,6 +164,24 @@ fn is_sharing_violation(err: &std::io::Error) -> bool {
     }
 }
 
+/// Resolve the manifest API URL from persisted settings rather than trusting
+/// the webview to supply one. Production builds ignore the `local` endpoint.
+fn resolve_api_url(app: &tauri::AppHandle) -> String {
+    use tauri_plugin_store::StoreBuilder;
+    if cfg!(debug_assertions) {
+        if let Ok(store) = StoreBuilder::new(app, "settings.json").build() {
+            let endpoint = store
+                .get("api_endpoint")
+                .and_then(|v| v.as_str().map(String::from))
+                .unwrap_or_default();
+            if endpoint == "local" {
+                return "http://localhost:8787".to_string();
+            }
+        }
+    }
+    DEFAULT_API_URL.to_string()
+}
+
 async fn fetch_manifest(api_url: &str, server_id: &str) -> Result<ContentManifest, String> {
     let url = format!("{}/api/servers/{}/content", api_url, server_id);
     let resp = reqwest::get(&url)
@@ -154,8 +196,9 @@ async fn fetch_manifest(api_url: &str, server_id: &str) -> Result<ContentManifes
 }
 
 /// Download `.vpk.bz2` from `url` into `dest_vpk` as a fully decompressed `.vpk`.
-/// Uses a temp `.part` file beside the destination, then atomic rename.
-/// Progress events are emitted throughout.
+/// Enforces `MAX_VPK_BYTES` during decompression so a malicious manifest cannot
+/// mount a bz2 bomb. Uses a temp `.part` file beside the destination, then
+/// atomic rename.
 async fn download_and_decompress(
     url: &str,
     dest_vpk: &Path,
@@ -208,7 +251,7 @@ async fn download_and_decompress(
         file.flush().await.map_err(|e| format!("Flush error: {}", e))?;
     }
 
-    // Decompress into a sibling .vpk.part file
+    // Decompress into a sibling .vpk.part file.
     let vpk_tmp = dest_vpk.with_extension("vpk.part");
     let bz2_tmp_clone = bz2_tmp.clone();
     let vpk_tmp_clone = vpk_tmp.clone();
@@ -232,9 +275,15 @@ async fn download_and_decompress(
             if n == 0 {
                 break;
             }
+            written += n as u64;
+            if written > MAX_VPK_BYTES {
+                return Err(format!(
+                    "decompressed payload for {} exceeds maximum size ({} bytes)",
+                    name, MAX_VPK_BYTES
+                ));
+            }
             std::io::Write::write_all(&mut output, &buf[..n])
                 .map_err(|e| format!("Write error: {}", e))?;
-            written += n as u64;
             let _ = win.emit(
                 "download-progress",
                 DownloadProgress {
@@ -253,10 +302,8 @@ async fn download_and_decompress(
     .await
     .map_err(|e| format!("Decompress task failed: {}", e))??;
 
-    // Keep/discard the .bz2 temp
     let _ = std::fs::remove_file(&bz2_tmp);
 
-    // Verify VPK magic on the decompressed temp
     verify_vpk_magic(&vpk_tmp)?;
 
     // Atomic rename onto the canonical path. This is the step that can fail
@@ -275,11 +322,7 @@ async fn download_and_decompress(
         }
         Err(e) => {
             let _ = std::fs::remove_file(&vpk_tmp);
-            Err(format!(
-                "Failed to install {}: {}",
-                dest_vpk.display(),
-                e
-            ))
+            Err(format!("Failed to install {}: {}", dest_vpk.display(), e))
         }
     }
 }
@@ -291,16 +334,21 @@ pub async fn prepare_and_connect(
     window: tauri::Window,
     server_id: String,
     addr: String,
-    api_url: Option<String>,
 ) -> Result<crate::connect::ConnectResult, String> {
-    let api_url = api_url.as_deref().unwrap_or(DEFAULT_API_URL);
+    let api_url = resolve_api_url(window.app_handle());
 
     let _ = window.emit(
         "download-progress",
         serde_json::json!({ "name": "", "status": "fetching", "bytes_downloaded": 0, "total_bytes": 0, "item_index": 0, "total_items": 0 }),
     );
 
-    let manifest = fetch_manifest(api_url, &server_id).await?;
+    let manifest = fetch_manifest(&api_url, &server_id).await?;
+
+    // Validate every item up-front so a bad manifest is rejected before we
+    // touch the filesystem.
+    for item in &manifest.items {
+        validate_filename(&item.filename)?;
+    }
 
     // If any addons are listed, verify gameinfo.gi is patched.
     let has_addons = manifest.items.iter().any(|i| i.kind == "addon");
@@ -417,4 +465,36 @@ pub async fn prepare_and_connect(
     );
 
     crate::connect::connect_to_server_inner(&addr)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_filename_with_separators() {
+        assert!(validate_filename("a/b").is_err());
+        assert!(validate_filename("a\\b").is_err());
+        assert!(validate_filename("../etc/passwd").is_err());
+        assert!(validate_filename("C:\\Windows\\foo").is_err());
+    }
+
+    #[test]
+    fn rejects_filename_dots() {
+        assert!(validate_filename(".").is_err());
+        assert!(validate_filename("..").is_err());
+    }
+
+    #[test]
+    fn rejects_empty_or_oversized_filename() {
+        assert!(validate_filename("").is_err());
+        assert!(validate_filename(&"a".repeat(129)).is_err());
+    }
+
+    #[test]
+    fn accepts_plain_filename() {
+        assert!(validate_filename("my_map_v2").is_ok());
+        assert!(validate_filename("addon-1.2.3").is_ok());
+    }
+
 }

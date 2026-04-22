@@ -6,11 +6,10 @@ import { cn } from "@/lib/utils";
 
 interface ConnectDialogProps {
   server: Server;
-  apiUrl: string;
   onClose: () => void;
 }
 
-export default function ConnectDialog({ server, apiUrl, onClose }: ConnectDialogProps) {
+export default function ConnectDialog({ server, onClose }: ConnectDialogProps) {
   const [status, setStatus] = useState("Initializing...");
   const [progress, setProgress] = useState<number | null>(null);
   const startedRef = useRef(false);
@@ -47,7 +46,7 @@ export default function ConnectDialog({ server, apiUrl, onClose }: ConnectDialog
 
       try {
         setStatus("Checking server content...");
-        const result = await prepareAndConnect(server.id, server.raw_address, apiUrl);
+        const result = await prepareAndConnect(server.id, server.raw_address);
         if (result.success) {
           setStatus(result.message);
           setTimeout(onClose, 2000);
@@ -72,7 +71,7 @@ export default function ConnectDialog({ server, apiUrl, onClose }: ConnectDialog
     return () => {
       unlisten?.();
     };
-  }, [server, apiUrl, onClose]);
+  }, [server, onClose]);
 
   return (
     <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && onClose()}>

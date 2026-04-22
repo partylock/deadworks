@@ -1,6 +1,6 @@
 [package]
 name = "deadworks-launcher"
-version = "0.2.10"
+version = "0.3.0"
 description = "Deadworks Launcher"
 authors = ["Deadworks"]
 edition = "2021"
@@ -13,7 +13,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["devtools", "tray-icon", "image-png"] }
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
 tauri-plugin-updater = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-process = "2"

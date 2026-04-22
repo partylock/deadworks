@@ -33,7 +33,7 @@ export default function ServerInfoWindow() {
 
   const handleConnect = async () => {
     if (!server?.online) return;
-    await prepareAndConnect(server.id, server.raw_address, apiUrl);
+    await prepareAndConnect(server.id, server.raw_address);
     getCurrentWebviewWindow().close();
   };
 

@@ -161,7 +161,6 @@ export default function ServersPage({ apiUrl }: ServersPageProps) {
       {connectingServer && (
         <ConnectDialog
           server={connectingServer}
-          apiUrl={apiUrl}
           onClose={() => setConnectingServer(null)}
         />
       )}

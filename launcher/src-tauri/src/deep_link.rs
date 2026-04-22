@@ -28,7 +28,7 @@ impl DeepLinkStateContainer {
     }
 }
 
-fn is_valid_ip_port(value: &str) -> bool {
+pub fn is_valid_ip_port(value: &str) -> bool {
     let (ip, port) = match value.split_once(':') {
         Some(p) => p,
         None => return false,

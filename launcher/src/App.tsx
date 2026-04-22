@@ -36,7 +36,6 @@ export default function App() {
         <ConnectDialog
           key={request.requestId}
           server={request.server}
-          apiUrl={settings.apiUrl}
           onClose={clear}
         />
       )}

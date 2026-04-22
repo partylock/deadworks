@@ -128,13 +128,11 @@ export function pingServer(addr: string): Promise<number> {
 
 export function prepareAndConnect(
   serverId: string,
-  addr: string,
-  apiUrl: string
+  addr: string
 ): Promise<ConnectResult> {
   return invoke<ConnectResult>("prepare_and_connect", {
     serverId,
     addr,
-    apiUrl,
   });
 }
 
