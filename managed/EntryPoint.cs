@@ -210,14 +210,6 @@ public static class EntryPoint
     [UnmanagedCallersOnly]
     public static void OnPrecacheResources()
     {
-        // Precache all heroes that are available in-game so hero/ability swaps have resources
-        foreach (Heroes hero in Enum.GetValues<Heroes>())
-        {
-            var data = hero.GetHeroData();
-            if (data != null && data.AvailableInGame)
-                Precache.AddHero(hero);
-        }
-
         PluginLoader.DispatchPrecacheResources();
     }
 
