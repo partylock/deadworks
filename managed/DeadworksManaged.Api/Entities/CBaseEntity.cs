@@ -3,7 +3,7 @@ using System.Numerics;
 namespace DeadworksManaged.Api;
 
 /// <summary>Base managed wrapper for all Source 2 entities. Provides common operations: health, team, lifecycle, modifiers, schema access.</summary>
-public unsafe class CBaseEntity : NativeEntity {
+public unsafe class CBaseEntity : NativeEntity, IEquatable<CBaseEntity> {
 	/// <summary>Sentinel value for an invalid CEntityHandle.</summary>
 	public const uint InvalidEntityHandle = 0xFFFFFFFF;
 
@@ -32,6 +32,21 @@ public unsafe class CBaseEntity : NativeEntity {
 		nint h = Handle;
 		return h != 0 ? $"{Classname} ({DesignerName}) [0x{h:X}]" : "CBaseEntity [null]";
 	}
+
+	/// <summary>Two wrappers are equal iff they point at the same native entity (same packed handle: serial + index). Wrapper type is ignored.</summary>
+	public bool Equals(CBaseEntity? other) => other is not null && EntityHandle == other.EntityHandle;
+
+	public override bool Equals(object? obj) => obj is CBaseEntity other && Equals(other);
+
+	public override int GetHashCode() => EntityHandle.GetHashCode();
+
+	public static bool operator ==(CBaseEntity? a, CBaseEntity? b) {
+		if (ReferenceEquals(a, b)) return true;
+		if (a is null || b is null) return false;
+		return a.EntityHandle == b.EntityHandle;
+	}
+
+	public static bool operator !=(CBaseEntity? a, CBaseEntity? b) => !(a == b);
 
 	/// <summary>Creates a new entity by class name (e.g. "info_particle_system"). Returns null on failure.</summary>
 	public static CBaseEntity? CreateByName(string className) {
