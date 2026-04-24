@@ -48,6 +48,7 @@ internal static unsafe class NativeInterop
 	public static delegate* unmanaged[Cdecl]<void*, byte*, double, void> KV3SetDouble => (delegate* unmanaged[Cdecl]<void*, byte*, double, void>)_cb.KV3SetDouble;
 	public static delegate* unmanaged[Cdecl]<void*, byte*, float, float, float, void> KV3SetVector => (delegate* unmanaged[Cdecl]<void*, byte*, float, float, float, void>)_cb.KV3SetVector;
 	public static delegate* unmanaged[Cdecl]<int, void*> GetEntityByIndex => (delegate* unmanaged[Cdecl]<int, void*>)_cb.GetEntityByIndex;
+	public static delegate* unmanaged[Cdecl]<void*, byte*, void*> FindEntityByName => (delegate* unmanaged[Cdecl]<void*, byte*, void*>)_cb.FindEntityByName;
 	public static delegate* unmanaged[Cdecl]<void*, uint> GetEntityHandle => (delegate* unmanaged[Cdecl]<void*, uint>)_cb.GetEntityHandle;
 	public static delegate* unmanaged[Cdecl]<byte*, void*> CreateEntityByName => (delegate* unmanaged[Cdecl]<byte*, void*>)_cb.CreateEntityByName;
 	public static delegate* unmanaged[Cdecl]<void*, void*, void> QueueSpawnEntity => (delegate* unmanaged[Cdecl]<void*, void*, void>)_cb.QueueSpawnEntity;

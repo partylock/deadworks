@@ -21,6 +21,7 @@
 #include "../SDK/Core.hpp"
 #include "../SDK/Util.hpp"
 
+#include <cstring>
 #include <tier1/convar.h>
 #include <igameevents.h>
 #include <igameeventsystem.h>
@@ -172,6 +173,29 @@ static void *__cdecl NativeGetEntityFromHandle(uint32_t handle) {
 
 static void *__cdecl NativeGetEntityByIndex(int32_t index) {
     return GameEntitySystem()->GetEntityInstance(CEntityIndex(index));
+}
+
+// Walks m_pFirstActiveEntity -> m_pNext, returning the next match after pStart
+// (pStart == nullptr starts from the head).
+static void *__cdecl NativeFindEntityByName(void *pStart, const char *name) {
+    if (!name) return nullptr;
+    auto *system = GameEntitySystem();
+    if (!system) return nullptr;
+
+    CEntityIdentity *ident;
+    if (pStart) {
+        auto *prev = static_cast<CEntityInstance *>(pStart)->m_pEntity;
+        ident = prev ? prev->m_pNext : nullptr;
+    } else {
+        ident = system->m_EntityList.m_pFirstActiveEntity;
+    }
+
+    for (; ident; ident = ident->m_pNext) {
+        const char *entName = ident->GetName();
+        if (entName && strcmp(entName, name) == 0)
+            return ident->m_pInstance;
+    }
+    return nullptr;
 }
 
 static uint32_t __cdecl NativeGetEntityHandle(void *entity) {
@@ -911,6 +935,7 @@ void deadworks::PopulateNativeCallbacks(NativeCallbacks &callbacks) {
     callbacks.GetEntityClassname = &NativeGetEntityClassname;
     callbacks.GetEntityFromHandle = &NativeGetEntityFromHandle;
     callbacks.GetEntityByIndex = &NativeGetEntityByIndex;
+    callbacks.FindEntityByName = &NativeFindEntityByName;
     callbacks.GetEntityHandle = &NativeGetEntityHandle;
     callbacks.CreateEntityByName = &NativeCreateEntityByName;
     callbacks.QueueSpawnEntity = &NativeQueueSpawnEntity;

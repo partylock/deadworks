@@ -48,6 +48,7 @@ internal struct NativeCallbacks
 	public nint KV3SetDouble;
 	public nint KV3SetVector;
 	public nint GetEntityByIndex;
+	public nint FindEntityByName;
 	public nint GetEntityHandle;
 	public nint CreateEntityByName;
 	public nint QueueSpawnEntity;

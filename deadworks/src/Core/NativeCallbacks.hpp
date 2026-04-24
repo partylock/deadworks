@@ -58,6 +58,7 @@ struct NativeCallbacks {
     void(__cdecl *KV3SetDouble)(void *kv3, const char *key, double value);
     void(__cdecl *KV3SetVector)(void *kv3, const char *key, float x, float y, float z);
     void *(__cdecl *GetEntityByIndex)(int32_t index);
+    void *(__cdecl *FindEntityByName)(void *pStart, const char *name);
     uint32_t(__cdecl *GetEntityHandle)(void *entity);
     void *(__cdecl *CreateEntityByName)(const char *className);
     void(__cdecl *QueueSpawnEntity)(void *entity, void *ekv);
