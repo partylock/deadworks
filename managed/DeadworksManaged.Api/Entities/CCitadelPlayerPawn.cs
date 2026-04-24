@@ -159,6 +159,17 @@ public sealed unsafe class CCitadelPlayerPawn : CBasePlayerPawn {
 		AbilityComponent.ToggleActivate(ability, activate);
 	}
 
+	/// <summary>Current stamina value (m_flCurrentValue on m_ResourceStamina).</summary>
+	public float GetStamina() => AbilityComponent.ResourceStamina.CurrentValue;
+
+	/// <summary>Helper to set stamina properly.</summary>
+	public void SetStamina(float value) {
+		var stamina = AbilityComponent.ResourceStamina;
+		stamina.CurrentValue = value;
+		stamina.LatchValue = value;
+		stamina.LatchTime = GlobalVars.CurTime;
+	}
+
 	/// <summary>
 	/// Sells an item from this pawn by internal item name.
 	/// This always refunds gold (at normal or full sell price) and will fail for items that cannot be sold.
