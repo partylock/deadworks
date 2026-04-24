@@ -84,6 +84,8 @@ struct NativeCallbacks {
     int32_t(__cdecl *GetUtlVectorSize)(void *vec);
     void *(__cdecl *GetUtlVectorData)(void *vec);
     uint8_t(__cdecl *RemoveAbility)(void *pawn, const char *abilityName);
+    uint8_t(__cdecl *RemoveAbilityByEntity)(void *pawn, void *ability);
+    void *(__cdecl *FindAbilityByName)(void *abilityComponent, const char *abilityName);
     void *(__cdecl *AddAbility)(void *pawn, const char *abilityName, uint16_t slot);
     void *(__cdecl *AddItem)(void *pawn, const char *itemName, int32_t upgradeTier);
     uint8_t(__cdecl *SellItem)(void *pawn, const char *itemName, uint8_t bFullRefund, uint8_t bForceSellPrice);

@@ -93,6 +93,11 @@ public sealed unsafe class CCitadelPlayerPawn : CBasePlayerPawn {
 		}
 	}
 
+	/// <summary>Removes an ability from this pawn by ability entity. Returns true on success.</summary>
+	public bool RemoveAbility(CCitadelBaseAbility ability) {
+		return NativeInterop.RemoveAbilityByEntity((void*)Handle, (void*)ability.Handle) != 0;
+	}
+
 	/// <summary>Adds an ability to this pawn by internal ability name into the given slot. Returns the new ability entity, or null on failure.</summary>
 	public CBaseEntity? AddAbility(string abilityName, ushort slot) {
 		Span<byte> utf8 = Utf8.Encode(abilityName, stackalloc byte[Utf8.Size(abilityName)]);

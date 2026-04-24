@@ -74,6 +74,8 @@ internal static unsafe class NativeInterop
 	public static delegate* unmanaged[Cdecl]<void*, int> GetUtlVectorSize => (delegate* unmanaged[Cdecl]<void*, int>)_cb.GetUtlVectorSize;
 	public static delegate* unmanaged[Cdecl]<void*, void*> GetUtlVectorData => (delegate* unmanaged[Cdecl]<void*, void*>)_cb.GetUtlVectorData;
 	public static delegate* unmanaged[Cdecl]<void*, byte*, byte> RemoveAbility => (delegate* unmanaged[Cdecl]<void*, byte*, byte>)_cb.RemoveAbility;
+	public static delegate* unmanaged[Cdecl]<void*, void*, byte> RemoveAbilityByEntity => (delegate* unmanaged[Cdecl]<void*, void*, byte>)_cb.RemoveAbilityByEntity;
+	public static delegate* unmanaged[Cdecl]<void*, byte*, void*> FindAbilityByName => (delegate* unmanaged[Cdecl]<void*, byte*, void*>)_cb.FindAbilityByName;
 	public static delegate* unmanaged[Cdecl]<void*, byte*, ushort, void*> AddAbility => (delegate* unmanaged[Cdecl]<void*, byte*, ushort, void*>)_cb.AddAbility;
 	public static delegate* unmanaged[Cdecl]<void*, byte*, int, void*> AddItem => (delegate* unmanaged[Cdecl]<void*, byte*, int, void*>)_cb.AddItem;
 	public static delegate* unmanaged[Cdecl]<void*, byte*, byte, byte, byte> SellItem => (delegate* unmanaged[Cdecl]<void*, byte*, byte, byte, byte>)_cb.SellItem;

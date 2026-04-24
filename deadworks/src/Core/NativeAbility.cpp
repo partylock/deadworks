@@ -244,22 +244,12 @@ static void ResolveSlotTableFns(FindSlotEntryFn &findFn, RemoveSlotEntryFn &remo
 // Native implementations
 // ---------------------------------------------------------------------------
 
-static uint8_t __cdecl NativeRemoveAbility(void *pawn, const char *abilityName) {
-    if (!pawn || !abilityName)
-        return 0;
-
-    auto *pPawn = static_cast<CCitadelPlayerPawn *>(pawn);
+static uint8_t RemoveAbilityImpl(CCitadelPlayerPawn *pPawn, CCitadelBaseAbility *ability) {
     auto *comp = pPawn->m_CCitadelAbilityComponent.Get();
     auto compAddr = reinterpret_cast<uintptr_t>(comp);
 
-    auto *ability = static_cast<CCitadelBaseAbility *>(comp->FindAbilityByName(abilityName));
-    if (!ability) {
-        g_Log->Info("RemoveAbility: FindAbilityByName('{}') returned null", abilityName);
-        return 0;
-    }
-
     uint32_t rawHandle = static_cast<uint32_t>(ability->GetRefEHandle().ToInt());
-    g_Log->Info("RemoveAbility: found '{}' handle=0x{:X}", abilityName, rawHandle);
+    g_Log->Info("RemoveAbility: handle=0x{:X}", rawHandle);
 
     static FindSlotEntryFn findSlotFn = nullptr;
     static RemoveSlotEntryFn removeSlotFn = nullptr;
@@ -292,8 +282,37 @@ static uint8_t __cdecl NativeRemoveAbility(void *pawn, const char *abilityName) 
     comp->m_vecThinkableAbilities.NetworkStateChanged();
 
     UTIL_Remove(static_cast<CEntityInstance *>(ability));
-    g_Log->Info("RemoveAbility: done for '{}'", abilityName);
+    g_Log->Info("RemoveAbility: done handle=0x{:X}", rawHandle);
     return 1;
+}
+
+static uint8_t __cdecl NativeRemoveAbility(void *pawn, const char *abilityName) {
+    if (!pawn || !abilityName)
+        return 0;
+
+    auto *pPawn = static_cast<CCitadelPlayerPawn *>(pawn);
+    auto *comp = pPawn->m_CCitadelAbilityComponent.Get();
+
+    auto *ability = static_cast<CCitadelBaseAbility *>(comp->FindAbilityByName(abilityName));
+    if (!ability) {
+        g_Log->Info("RemoveAbility: FindAbilityByName('{}') returned null", abilityName);
+        return 0;
+    }
+
+    return RemoveAbilityImpl(pPawn, ability);
+}
+
+static uint8_t __cdecl NativeRemoveAbilityByEntity(void *pawn, void *ability) {
+    if (!pawn || !ability)
+        return 0;
+    return RemoveAbilityImpl(static_cast<CCitadelPlayerPawn *>(pawn),
+                             static_cast<CCitadelBaseAbility *>(ability));
+}
+
+static void *__cdecl NativeFindAbilityByName(void *abilityComponent, const char *abilityName) {
+    if (!abilityComponent || !abilityName)
+        return nullptr;
+    return static_cast<CCitadelAbilityComponent *>(abilityComponent)->FindAbilityByName(abilityName);
 }
 
 static void *__cdecl NativeAddAbility(void *pawn, const char *abilityName, uint16_t slot) {
@@ -449,6 +468,8 @@ static void __cdecl NativeSetUpgradeBits(void *ability, int32_t newBits) {
 
 void deadworks::PopulateAbilityNatives(NativeCallbacks &cb) {
     cb.RemoveAbility = &NativeRemoveAbility;
+    cb.RemoveAbilityByEntity = &NativeRemoveAbilityByEntity;
+    cb.FindAbilityByName = &NativeFindAbilityByName;
     cb.AddAbility = &NativeAddAbility;
     cb.AddItem = &NativeAddItem;
     cb.SellItem = &NativeSellItem;

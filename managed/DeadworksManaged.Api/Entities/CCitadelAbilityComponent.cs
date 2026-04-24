@@ -52,6 +52,15 @@ public unsafe class CCitadelAbilityComponent : NativeEntity {
 		return result != null ? new CCitadelBaseAbility((nint)result) : null;
 	}
 
+	/// <summary>Finds an ability on this component by its internal name (e.g. "citadel_ability_primary_dash"), or null if not found.</summary>
+	public CCitadelBaseAbility? FindAbilityByName(string abilityName) {
+		Span<byte> utf8 = Utf8.Encode(abilityName, stackalloc byte[Utf8.Size(abilityName)]);
+		fixed (byte* ptr = utf8) {
+			void* result = NativeInterop.FindAbilityByName((void*)Handle, ptr);
+			return result != null ? new CCitadelBaseAbility((nint)result) : null;
+		}
+	}
+
 	/// <summary>Activates or deactivates an ability (toggle). This is the actual activation path for most abilities.</summary>
 	public void ToggleActivate(CBaseEntity ability, bool activate = true) {
 		NativeInterop.ToggleActivate((void*)ability.Handle, activate ? (byte)1 : (byte)0);

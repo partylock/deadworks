@@ -74,6 +74,8 @@ internal struct NativeCallbacks
 	public nint GetUtlVectorSize;
 	public nint GetUtlVectorData;
 	public nint RemoveAbility;
+	public nint RemoveAbilityByEntity;
+	public nint FindAbilityByName;
 	public nint AddAbility;
 	public nint AddItem;
 	public nint SellItem;
