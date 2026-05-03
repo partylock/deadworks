@@ -360,6 +360,9 @@ public unsafe class CBaseEntity : NativeEntity, IEquatable<CBaseEntity> {
 	/// <summary>The entity's absolute velocity.</summary>
 	public Vector3 AbsVelocity { get => _vecAbsVelocity.Get(Handle); set => _vecAbsVelocity.Set(Handle, value); }
 
+	private static readonly SchemaAccessor<float> _flFriction = new("CBaseEntity"u8, "m_flFriction"u8);
+	public float Friction { get => _flFriction.Get(Handle); set => _flFriction.Set(Handle, value); }
+
 	private static readonly SchemaAccessor<nint> _modifierProp = new("CBaseEntity"u8, "m_pModifierProp"u8);
 	public CModifierProperty? ModifierProp {
 		get {
