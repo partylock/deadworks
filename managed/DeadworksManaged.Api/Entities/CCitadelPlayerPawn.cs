@@ -65,6 +65,9 @@ public sealed unsafe class CCitadelPlayerPawn : CBasePlayerPawn {
 	private static readonly SchemaAccessor<int> _level = new("CCitadelPlayerPawn"u8, "m_nLevel"u8);
 	public int Level { get => _level.Get(Handle); set => _level.Set(Handle, value); }
 
+	private static readonly SchemaAccessor<float> _flRespawnTime = new("CCitadelPlayerPawn"u8, "m_flRespawnTime"u8);
+	public float RespawnTime { get => _flRespawnTime.Get(Handle); set => _flRespawnTime.Set(Handle, value); }
+
 	private static readonly SchemaArrayAccessor<int> _currencies = new("CCitadelPlayerPawn"u8, "m_nCurrencies"u8);
 	public int GetCurrency(ECurrencyType type) => _currencies.Get(Handle, (int)type);
 	public void SetCurrency(ECurrencyType type, int value) => _currencies.Set(Handle, (int)type, value);
