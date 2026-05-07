@@ -324,6 +324,15 @@ public unsafe class CBaseEntity : NativeEntity, IEquatable<CBaseEntity> {
 
 	public Vector3 Position => BodyComponent?.SceneNode?.AbsOrigin ?? Vector3.Zero;
 
+	private static readonly SchemaAccessor<nint> _pCollision = new("CBaseEntity"u8, "m_pCollision"u8);
+	/// <summary>Collision property (OBB mins/maxs, bounding radius). Null for entities without a collision representation.</summary>
+	public CCollisionProperty? Collision {
+		get {
+			nint ptr = _pCollision.Get(Handle);
+			return ptr != 0 ? new CCollisionProperty(ptr, this) : null;
+		}
+	}
+
 	private static readonly SchemaAccessor<int> _health = new("CBaseEntity"u8, "m_iHealth"u8);
 	public int Health { get => _health.Get(Handle); set => _health.Set(Handle, value); }
 
