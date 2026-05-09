@@ -13,5 +13,9 @@ bool __fastcall Hook_CServerSideClientBase_FilterMessage(INetworkMessageProcessi
     return g_CServerSideClientBase_FilterMessage.thiscall<bool>(thisptr, pData);
 }
 
+bool __fastcall Hook_CServerSideClientBase_IsReservedSlot(CServerSideClientBase *thisptr) {
+    return false;
+}
+
 } // namespace hooks
 } // namespace deadworks

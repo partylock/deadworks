@@ -173,6 +173,9 @@ void Deadworks::PostInit() {
     HookInline(hooks::g_CServerSideClientBase_FilterMessage,
                "CServerSideClientBase::FilterMessage",
                &hooks::Hook_CServerSideClientBase_FilterMessage);
+    HookInline(hooks::g_CServerSideClientBase_IsReservedSlot,
+               "CServerSideClientBase::IsReservedSlot",
+               &hooks::Hook_CServerSideClientBase_IsReservedSlot);
     HookInline(hooks::g_ReplyConnection,
                "CNetworkGameServerBase::ReplyConnection",
                &hooks::Hook_ReplyConnection);
