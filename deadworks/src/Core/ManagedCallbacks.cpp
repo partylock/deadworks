@@ -67,6 +67,9 @@ void deadworks::InitializeManagedCallbacks(DotNetHost &host, ManagedCallbacks &m
     BindCallback(host, assemblyPath, managed.onEntityStartTouch, L"OnEntityStartTouch");
     BindCallback(host, assemblyPath, managed.onEntityEndTouch, L"OnEntityEndTouch");
     BindCallback(host, assemblyPath, managed.onEntityAcceptInput, L"OnEntityAcceptInput");
+    BindCallback(host, assemblyPath, managed.onEntityAcceptInputPost, L"OnEntityAcceptInputPost");
+    BindCallback(host, assemblyPath, managed.onEntityFireOutput, L"OnEntityFireOutput");
+    BindCallback(host, assemblyPath, managed.onEntityFireOutputPost, L"OnEntityFireOutputPost");
     BindCallback(host, assemblyPath, managed.onProcessUsercmds, L"OnProcessUsercmds");
     BindCallback(host, assemblyPath, managed.onAbilityAttempt, L"OnAbilityAttempt");
     BindCallback(host, assemblyPath, g_ManagedConCommandDispatch, L"OnConCommandDispatch");
