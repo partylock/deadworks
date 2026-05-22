@@ -236,6 +236,9 @@ void Deadworks::PostInit() {
     HookInline(hooks::g_CEntityInstance_AcceptInput,
                "CEntityInstance::AcceptInput",
                &hooks::Hook_CEntityInstance_AcceptInput);
+    HookInline(hooks::g_CEntityIOOutput_FireOutputInternal,
+               "CEntityIOOutput::FireOutputInternal",
+               &hooks::Hook_CEntityIOOutput_FireOutputInternal);
     HookInline(hooks::g_ProcessUsercmds,
                "CBasePlayerController::ProcessUsercmds",
                &hooks::Hook_ProcessUsercmds);
@@ -550,9 +553,34 @@ void Deadworks::OnEndTouch(CBaseEntity *entity, CBaseEntity *other) {
         m_managed.onEntityEndTouch(entity, other);
 }
 
-void Deadworks::OnEntityAcceptInput(void *entity, void *activator, void *caller, const char *inputName, const char *value) {
+int Deadworks::OnEntityAcceptInputPre(const char *className, const char *inputName,
+                                       void *entity, void *activator, void *caller, void *variantValue) {
     if (m_managed.onEntityAcceptInput)
-        m_managed.onEntityAcceptInput(entity, activator, caller, inputName, value);
+        return m_managed.onEntityAcceptInput(className ? className : "", inputName ? inputName : "",
+                                              entity, activator, caller, variantValue);
+    return 0;
+}
+
+void Deadworks::OnEntityAcceptInputPost(const char *className, const char *inputName,
+                                         void *entity, void *activator, void *caller, void *variantValue) {
+    if (m_managed.onEntityAcceptInputPost)
+        m_managed.onEntityAcceptInputPost(className ? className : "", inputName ? inputName : "",
+                                           entity, activator, caller, variantValue);
+}
+
+int Deadworks::OnEntityFireOutputPre(const char *callerClass, const char *outputName,
+                                      void *activator, void *caller, const void *variantValue, float delay) {
+    if (m_managed.onEntityFireOutput)
+        return m_managed.onEntityFireOutput(callerClass ? callerClass : "", outputName ? outputName : "",
+                                             activator, caller, variantValue, delay);
+    return 0;
+}
+
+void Deadworks::OnEntityFireOutputPost(const char *callerClass, const char *outputName,
+                                        void *activator, void *caller, const void *variantValue, float delay) {
+    if (m_managed.onEntityFireOutputPost)
+        m_managed.onEntityFireOutputPost(callerClass ? callerClass : "", outputName ? outputName : "",
+                                          activator, caller, variantValue, delay);
 }
 
 void Deadworks::OnPre_ProcessUsercmds(int playerSlot, const uint8_t *batchBytes, int batchLen, int numCmds, bool paused, float margin, uint8_t *outBytes, int *outLen) {

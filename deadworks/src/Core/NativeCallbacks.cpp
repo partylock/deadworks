@@ -916,6 +916,87 @@ static uint8_t __cdecl NativeHasCommandLineParm(const char *parm) {
     return CommandLine()->HasParm(CUtlStringToken(parm, static_cast<int>(strlen(parm)))) ? 1 : 0;
 }
 
+// --- Variant accessors (for EntityIOValue) ---
+
+static uint8_t __cdecl NativeVariantGetType(const void *variantPtr) {
+    if (!variantPtr) return 0; // FIELD_VOID
+    return static_cast<uint8_t>(static_cast<const variant_t *>(variantPtr)->FieldType());
+}
+
+static const char *__cdecl NativeVariantToCString(const void *variantPtr) {
+    if (!variantPtr) return "";
+    return static_cast<const variant_t *>(variantPtr)->ToString();
+}
+
+static int64_t __cdecl NativeVariantToInt64(const void *variantPtr) {
+    if (!variantPtr) return 0;
+    int64_t out = 0;
+    static_cast<const variant_t *>(variantPtr)->AssignTo(&out);
+    return out;
+}
+
+static double __cdecl NativeVariantToFloat64(const void *variantPtr) {
+    if (!variantPtr) return 0.0;
+    double out = 0.0;
+    static_cast<const variant_t *>(variantPtr)->AssignTo(&out);
+    return out;
+}
+
+static uint8_t __cdecl NativeVariantToBool(const void *variantPtr) {
+    if (!variantPtr) return 0;
+    bool out = false;
+    static_cast<const variant_t *>(variantPtr)->AssignTo(&out);
+    return out ? 1 : 0;
+}
+
+static uint32_t __cdecl NativeVariantToEHandle(const void *variantPtr) {
+    if (!variantPtr) return 0xFFFFFFFFu;
+    CEntityHandle out;
+    if (static_cast<const variant_t *>(variantPtr)->AssignTo(&out))
+        return static_cast<uint32_t>(out.ToInt());
+    return 0xFFFFFFFFu;
+}
+
+static void __cdecl NativeVariantToVector(const void *variantPtr, float *outXYZW) {
+    if (!outXYZW) return;
+    outXYZW[0] = outXYZW[1] = outXYZW[2] = outXYZW[3] = 0.0f;
+    if (!variantPtr) return;
+
+    const variant_t *v = static_cast<const variant_t *>(variantPtr);
+    switch (v->FieldType()) {
+        case FIELD_VECTOR:
+        case FIELD_QANGLE: {
+            Vector vec(0, 0, 0);
+            if (v->AssignTo(&vec)) { outXYZW[0] = vec.x; outXYZW[1] = vec.y; outXYZW[2] = vec.z; }
+            break;
+        }
+        case FIELD_VECTOR2D: {
+            Vector2D vec(0, 0);
+            if (v->AssignTo(&vec)) { outXYZW[0] = vec.x; outXYZW[1] = vec.y; }
+            break;
+        }
+        case FIELD_VECTOR4D:
+        case FIELD_QUATERNION: {
+            Vector4D vec(0, 0, 0, 0);
+            if (v->AssignTo(&vec)) { outXYZW[0] = vec.x; outXYZW[1] = vec.y; outXYZW[2] = vec.z; outXYZW[3] = vec.w; }
+            break;
+        }
+        default: break;
+    }
+}
+
+static uint32_t __cdecl NativeVariantToColor(const void *variantPtr) {
+    if (!variantPtr) return 0;
+    Color out(0, 0, 0, 0);
+    if (static_cast<const variant_t *>(variantPtr)->AssignTo(&out)) {
+        return static_cast<uint32_t>(out.r()) |
+               (static_cast<uint32_t>(out.g()) << 8) |
+               (static_cast<uint32_t>(out.b()) << 16) |
+               (static_cast<uint32_t>(out.a()) << 24);
+    }
+    return 0;
+}
+
 static uint32_t __cdecl NativeTakeSoundEventGuid() {
     if (!g_pSoundSystem)
         return 0;
@@ -1077,4 +1158,14 @@ void deadworks::PopulateNativeCallbacks(NativeCallbacks &callbacks) {
 
     // Sound events
     callbacks.TakeSoundEventGuid = &NativeTakeSoundEventGuid;
+
+    // Variant accessors (for entity I/O hooks)
+    callbacks.VariantGetType = &NativeVariantGetType;
+    callbacks.VariantToCString = &NativeVariantToCString;
+    callbacks.VariantToInt64 = &NativeVariantToInt64;
+    callbacks.VariantToFloat64 = &NativeVariantToFloat64;
+    callbacks.VariantToBool = &NativeVariantToBool;
+    callbacks.VariantToEHandle = &NativeVariantToEHandle;
+    callbacks.VariantToVector = &NativeVariantToVector;
+    callbacks.VariantToColor = &NativeVariantToColor;
 }
