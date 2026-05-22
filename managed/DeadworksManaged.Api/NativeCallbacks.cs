@@ -126,4 +126,5 @@ internal struct NativeCallbacks
 	public nint VariantToEHandle;
 	public nint VariantToVector;
 	public nint VariantToColor;
+	public nint AddConCommandFlags;
 }

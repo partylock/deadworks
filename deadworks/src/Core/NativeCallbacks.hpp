@@ -137,6 +137,7 @@ struct NativeCallbacks {
     uint32_t(__cdecl *VariantToEHandle)(const void *variantPtr);
     void(__cdecl *VariantToVector)(const void *variantPtr, float *outXYZW);  // populates 4 floats; zero-pads unused components
     uint32_t(__cdecl *VariantToColor)(const void *variantPtr);  // packed RGBA (R in low byte)
+    uint8_t(__cdecl *AddConCommandFlags)(const char *name, uint64_t flags);
 };
 
 void PopulateNativeCallbacks(NativeCallbacks &callbacks);
