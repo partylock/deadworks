@@ -884,6 +884,19 @@ static uint8_t __cdecl NativeGetConCommandAt(uint16_t index, ConCommandInfoResul
     return 1;
 }
 
+// OR-in `flags` on the registered ConCommand named `name`. Returns 1 on success,
+// 0 if the command isn't registered. Used to retrofit FCVAR_CHEAT onto commands
+// that ship without it.
+static uint8_t __cdecl NativeAddConCommandFlags(const char *name, uint64_t flags) {
+    if (!name || !g_pCVar)
+        return 0;
+    ConCommandRef cmd(name);
+    if (!cmd.IsValidRef())
+        return 0;
+    cmd.AddFlags(flags);
+    return 1;
+}
+
 // ---------------------------------------------------------------------------
 // Entity virtual function wrappers
 // ---------------------------------------------------------------------------
@@ -1168,4 +1181,7 @@ void deadworks::PopulateNativeCallbacks(NativeCallbacks &callbacks) {
     callbacks.VariantToEHandle = &NativeVariantToEHandle;
     callbacks.VariantToVector = &NativeVariantToVector;
     callbacks.VariantToColor = &NativeVariantToColor;
+
+    // ConCommand flag mutation
+    callbacks.AddConCommandFlags = &NativeAddConCommandFlags;
 }

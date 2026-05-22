@@ -16,6 +16,7 @@ public static class EntryPoint
         Console.WriteLine("Hello from .NET 10!");
 
         NativeInterop.Bind(callbacks);
+        CheatCommandGate.ApplyCheatFlag();
         PluginLoader.LoadAll();
     }
 
