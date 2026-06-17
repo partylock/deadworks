@@ -28,6 +28,7 @@ Build: `dotnet build server/deadworks/plugins/PartyLockCorePlugin/PartyLockCoreP
 
 | File | Description |
 |------|-------------|
+| [fork-workflow.md](./fork-workflow.md) | Como atualizar o fork com o upstream oficial |
 | [plugin-development.md](./plugin-development.md) | Setup, build, deploy, and PartyLock conventions |
 | [api-quick-reference.md](./api-quick-reference.md) | Condensed API cheat sheet |
 
@@ -59,9 +60,9 @@ server/deadworks/
 
 ## Cursor AI Rules
 
-Project rules live in `.cursor/rules/`:
+Project rules live in `.cursor/rules/` (dentro de `server/deadworks/`):
 
+- `deadworks-fork-boundaries.mdc` — o que pode/não pode editar no fork
 - `deadworks-plugins.mdc` — plugin structure and lifecycle
-- `deadworks-api.mdc` — API patterns and hooks
 
-These activate automatically when editing `server/deadworks/**/*.cs`.
+Fork update workflow: [fork-workflow.md](./fork-workflow.md)
