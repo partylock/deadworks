@@ -18,6 +18,8 @@ public static class EntryPoint
         NativeInterop.Bind(callbacks);
         CheatCommandGate.ApplyCheatFlag();
         PluginLoader.LoadAll();
+        // Native StartupServer often runs before the managed runtime is ready on first map load.
+        PluginLoader.DispatchStartupServer();
     }
 
     [UnmanagedCallersOnly]
