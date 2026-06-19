@@ -65,6 +65,38 @@ public static unsafe class GameRules
 	public static int PauseStartTick => _gameRulesPtr != 0 ? _pauseStartTick.Get(_gameRulesPtr) : 0;
 
 	/// <summary>
+	/// Resets the match clock to zero without reloading the map.
+	/// Also realigns midboss/rejuv counters relative to the new start time.
+	/// </summary>
+	public static bool ResetMatchClock(float defaultMidBossDelaySeconds = 600f) {
+		if (_gameRulesPtr == 0 || !GlobalVars.IsValid)
+			return false;
+
+		var tickInterval = GlobalVars.IntervalPerTick;
+		var pausedTicks = _totalPausedTicks.Get(_gameRulesPtr);
+		var effectiveNow = GlobalVars.CurTime - pausedTicks * tickInterval;
+
+		var oldStart = _gameStartTime.Get(_gameRulesPtr);
+		var oldMidBoss = _nextMidBossSpawnTime.Get(_gameRulesPtr);
+		var midBossDelay = oldMidBoss > oldStart
+			? oldMidBoss - oldStart
+			: defaultMidBossDelaySeconds;
+
+		_totalPausedTicks.Set(_gameRulesPtr, 0);
+		_pauseStartTick.Set(_gameRulesPtr, 0);
+		_gameStartTime.Set(_gameRulesPtr, effectiveNow);
+		_roundStartTime.Set(_gameRulesPtr, effectiveNow);
+		_gameStateStartTime.Set(_gameRulesPtr, effectiveNow);
+		_matchClockAtLastUpdate.Set(_gameRulesPtr, 0f);
+		_nextMidBossSpawnTime.Set(_gameRulesPtr, effectiveNow + midBossDelay);
+		_midbossKillCount.Set(_gameRulesPtr, 0);
+		_amberRejuvCount.Set(_gameRulesPtr, 0);
+		_sapphireRejuvCount.Set(_gameRulesPtr, 0);
+
+		return true;
+	}
+
+	/// <summary>
 	/// Returns the current game clock in seconds, accounting for pauses.
 	/// Returns 0 if game rules or global vars are unavailable.
 	/// </summary>
