@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.4
 # Build from deadworks checkout (see Makefile `build-gameserver`).
 #   docker build -f docker/Dockerfile \
-#     --build-context extra-plugins=plugins/PartyLockCorePlugin \
+#     --build-context extra-plugins=plugins \
 #     -t partylock/gameserver:latest .
 
 FROM ubuntu:24.04 AS native-builder
@@ -80,6 +80,7 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS managed-builder
 WORKDIR /build
 COPY managed managed
 COPY game_exported game_exported
+COPY docker/plugin-assembly-paths.targets docker/plugin-assembly-paths.targets
 
 RUN --mount=from=extra-plugins,target=/extra \
  mkdir -p extra-plugins && \
@@ -89,9 +90,8 @@ RUN dotnet publish managed/DeadworksManaged.csproj \
  -c Release -o /artifacts/managed --no-self-contained
 
 RUN mkdir -p /artifacts/managed/plugins && \
- if ls extra-plugins/*/*.csproj 1>/dev/null 2>&1; then \
- printf ' \n \n $(AssemblySearchPaths);/artifacts/managed \n \n \n' \
- > extra-plugins/Directory.Build.targets && \
+ if find extra-plugins -name '*.csproj' -not -path '*/.*' -not -name '*.Tests.csproj' 2>/dev/null | grep -q .; then \
+ cp docker/plugin-assembly-paths.targets extra-plugins/Directory.Build.targets && \
  find extra-plugins -name '*.csproj' -not -path '*/.*' -not -name '*.Tests.csproj' -print0 | \
  xargs -0 -r -I {} dotnet publish {} -c Release -o /artifacts/managed/plugins --no-self-contained; \
  fi

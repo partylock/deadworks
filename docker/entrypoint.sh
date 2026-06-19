@@ -44,9 +44,19 @@ WINE64="${PROTON_DIR}/files/bin/wine64"
 
 echo "[phase 2] Updating Deadlock server files..."
 mkdir -p "${COMPAT_DATA}"
-chown steam:steam "${INSTALL_DIR}" 2>/dev/null || true
+# ponytail: orchestrator bind-mounts instance dirs as root — steam needs ownership before wineboot
+chown -R steam:steam "${COMPAT_DATA}" "${INSTALL_DIR}" 2>/dev/null || true
 
-if [ -f "${GAME_BASE_DIR}/game/bin/win64/deadlock.exe" ]; then
+if [ "${GAMEFILES_DIRECT_MOUNT:-0}" = "1" ]; then
+ if [ ! -f "${GAME_BASE_DIR}/game/bin/win64/deadlock.exe" ]; then
+ echo "[phase 2] ERROR: deadlock.exe not found at ${GAME_BASE_DIR}/game/bin/win64/deadlock.exe"
+ if [ -n "${GAMEFILES_HOST_ROOT:-}" ]; then
+ echo "[phase 2] Host source: ${GAMEFILES_HOST_ROOT} (mounted at ${GAME_BASE_DIR})"
+ fi
+ echo "[phase 2] GAMEFILES_MOUNT must point at the dedicated server root (with a game/ subfolder)."
+ exit 1
+ fi
+elif [ -f "${GAME_BASE_DIR}/game/bin/win64/deadlock.exe" ]; then
  echo "[phase 2] Game files already present in ${GAME_BASE_DIR} — skipping SteamCMD."
 else
  if [ -z "${STEAM_LOGIN}" ] || [ -z "${STEAM_PASSWORD}" ]; then
@@ -79,20 +89,59 @@ else
 fi
 echo "[phase 2] Game files verified."
 
-echo "[phase 2] Linking game files to instance directory..."
-find "${INSTALL_DIR}" -xtype l -delete 2>/dev/null || true
-gosu steam cp -rs "${GAME_BASE_DIR}/." "${INSTALL_DIR}/" 2>/dev/null || true
+if [ "${GAMEFILES_DIRECT_MOUNT:-0}" = "1" ]; then
+ # ponytail: Wine cannot execute PEs from Docker Desktop 9p source mounts
+ GAME_MATERIALIZE_MARKER="${INSTALL_DIR}/.partylock_game_materialized"
+ if [ ! -f "${GAME_MATERIALIZE_MARKER}" ]; then
+ echo "[phase 2] Materializing game into instance dir (Wine cannot run PEs from Windows bind mounts)..."
+ echo "[phase 2] One-time per match — or run: make import-gamefiles && clear GAMEFILES_MOUNT"
+ rm -rf "${INSTALL_DIR}/game"
+ gosu steam cp -a "${GAME_BASE_DIR}/game" "${INSTALL_DIR}/game"
+ touch "${GAME_MATERIALIZE_MARKER}"
+ chown -R steam:steam "${INSTALL_DIR}/game"
+ else
+ echo "[phase 2] Game files already materialized in instance dir."
+ fi
+else
+ echo "[phase 2] Linking game files to instance directory (symlinks, no extra disk use)..."
+ find "${INSTALL_DIR}" -xtype l -delete 2>/dev/null || true
+ gosu steam cp -rs "${GAME_BASE_DIR}/." "${INSTALL_DIR}/" 2>/dev/null || true
+fi
 
-STEAM_CLIENT_DIR="/home/steam/steam_client"
-if [ ! -f "${STEAM_CLIENT_DIR}/steamclient64.dll" ]; then
- echo "[phase 2] Downloading Windows Steam client DLLs..."
+for required in \
+  "${INSTALL_DIR}/game/bin/win64/engine2.dll" \
+  "${INSTALL_DIR}/game/citadel/bin/win64/server.dll"; do
+  if [ ! -f "${required}" ]; then
+    echo "[phase 2] ERROR: missing ${required}"
+    echo "[phase 2] GAMEFILES_MOUNT must point at the dedicated server root (contains game/bin/win64/deadlock.exe)."
+    exit 1
+  fi
+done
+
+STEAM_CLIENT_DIR="/opt/steam_client_win"
+# ponytail: empty root-owned volume at force_install_dir makes SteamCMD fall back to SDK Redist stub
+steam_client_ready() {
+ [ -f "${STEAM_CLIENT_DIR}/steamclient64.dll" ] \
+ && [ "$(stat -c%s "${STEAM_CLIENT_DIR}/steamclient64.dll" 2>/dev/null || echo 0)" -gt 10000000 ]
+}
+if ! steam_client_ready; then
+ echo "[phase 2] Downloading Windows Steam client DLLs (app 1007)..."
+ rm -rf "${STEAM_CLIENT_DIR:?}"/*
  mkdir -p "${STEAM_CLIENT_DIR}"
+ chown steam:steam "${STEAM_CLIENT_DIR}"
  gosu steam /home/steam/steamcmd/steamcmd.sh \
  +@sSteamCmdForcePlatformType windows \
  +force_install_dir "${STEAM_CLIENT_DIR}" \
  +login anonymous \
  +app_update 1007 validate \
- +quit || true
+ +quit
+ if ! steam_client_ready; then
+ echo "[phase 2] ERROR: full steamclient64.dll missing after app 1007 download"
+ echo "[phase 2] Check ${STEAM_CLIENT_DIR} is writable by steam (not an empty root-owned volume mount)."
+ exit 1
+ fi
+else
+ echo "[phase 2] Windows Steam client DLLs cached."
 fi
 
 Xvfb :99 -screen 0 640x480x24 &
@@ -100,10 +149,31 @@ XVFB_PID=$!
 sleep 1
 
 PROTON_MARKER="${PFXDIR}/.proton_marker"
+WARM_ROOT="/opt/compatdata-warm"
+WARM_PFX="${WARM_ROOT}/pfx"
+WARM_SEED_MARKER="${WARM_PFX}/.dotnet_${DOTNET_VERSION}_marker"
+
 if [ ! -f "${PROTON_MARKER}" ]; then
- echo "[phase 3] Initializing Wine prefix..."
+ if [ "${PARTYLOCK_DISABLE_COMPATDATA_WARM:-0}" != "1" ] \
+ && [ -f "${WARM_SEED_MARKER}" ] && [ -d "${WARM_PFX}" ]; then
+ echo "[phase 3] Cloning Wine prefix from warm template..."
  rm -rf "${PFXDIR}"
- gosu steam mkdir -p "${PFXDIR}"
+ mkdir -p "${PFXDIR}"
+ cp -a "${WARM_PFX}/." "${PFXDIR}/"
+ chown -R steam:steam "${COMPAT_DATA}"
+ echo "[phase 3] Wine prefix cloned from warm template."
+ elif [ "${PARTYLOCK_DISABLE_COMPATDATA_WARM:-0}" != "1" ] \
+ && [ -f "${WARM_PFX}/.proton_marker" ] && [ -d "${WARM_PFX}" ]; then
+ echo "[phase 3] Cloning partial warm template (will install .NET)..."
+ rm -rf "${PFXDIR}"
+ mkdir -p "${PFXDIR}"
+ cp -a "${WARM_PFX}/." "${PFXDIR}/"
+ chown -R steam:steam "${COMPAT_DATA}"
+ else
+ echo "[phase 3] Initializing Wine prefix (first run may take 5–15 min)..."
+ rm -rf "${PFXDIR}"
+ mkdir -p "${PFXDIR}"
+ chown -R steam:steam "${COMPAT_DATA}"
  gosu steam bash -c "
  export WINEPREFIX='${PFXDIR}'
  export WINEDLLPATH='${PROTON_DIR}/files/lib64/wine/x86_64-windows:${PROTON_DIR}/files/lib64/wine/x86_64-unix'
@@ -113,20 +183,24 @@ if [ ! -f "${PROTON_MARKER}" ]; then
  " || true
  touch "${PROTON_MARKER}"
  echo "[phase 3] Wine prefix initialized."
+ fi
 else
  echo "[phase 3] Wine prefix already initialized."
 fi
 
-for dll in steamclient64.dll steamclient.dll; do
- SRC="${REDIST_DIR}/${dll}"
- [ ! -f "$SRC" ] && SRC="${STEAM_CLIENT_DIR}/${dll}"
- if [ -f "$SRC" ]; then
+install_steam_dll() {
+ local dll="$1"
+ local src="${STEAM_CLIENT_DIR}/${dll}"
+ [ ! -f "$src" ] && src="${REDIST_DIR}/${dll}"
+ [ -f "$src" ] || return 0
  mkdir -p "${PFXDIR}/drive_c/Program Files (x86)/Steam"
- cp -f "$SRC" "${PFXDIR}/drive_c/Program Files (x86)/Steam/${dll}"
+ cp -f "$src" "${PFXDIR}/drive_c/Program Files (x86)/Steam/${dll}"
  rm -f "${WIN64_DIR}/${dll}"
- cp -f "$SRC" "${WIN64_DIR}/${dll}"
- cp -f "$SRC" "${PFXDIR}/drive_c/windows/system32/${dll}"
- fi
+ cp -f "$src" "${WIN64_DIR}/${dll}"
+ cp -f "$src" "${PFXDIR}/drive_c/windows/system32/${dll}"
+}
+for dll in steamclient64.dll steamclient.dll tier0_s64.dll vstdlib_s64.dll; do
+ install_steam_dll "${dll}"
 done
 
 DOTNET_WINE_DIR="${PFXDIR}/drive_c/Program Files/dotnet"
@@ -143,9 +217,30 @@ if [ ! -f "${DOTNET_MARKER}" ]; then
  fi
  mkdir -p "${DOTNET_WINE_DIR}"
  unzip -qo "${DOTNET_ZIP}" -d "${DOTNET_WINE_DIR}"
+ if ! ls "${DOTNET_WINE_DIR}/host/fxr/"*/hostfxr.dll 1>/dev/null 2>&1; then
+ echo "[phase 4] ERROR: hostfxr.dll not found after .NET install"
+ exit 1
+ fi
  touch "${DOTNET_MARKER}"
 else
  echo "[phase 4] .NET ${DOTNET_VERSION} already installed."
+fi
+
+if [ "${PARTYLOCK_DISABLE_COMPATDATA_WARM:-0}" != "1" ] \
+ && [ -d "${WARM_ROOT}" ] && [ ! -f "${WARM_SEED_MARKER}" ] \
+ && [ -f "${DOTNET_MARKER}" ] && [ -f "${PROTON_MARKER}" ]; then
+ echo "[phase 4b] Seeding shared compatdata warm template..."
+ mkdir -p "${WARM_PFX}"
+ (
+ flock -x 200
+ if [ ! -f "${WARM_SEED_MARKER}" ]; then
+ rm -rf "${WARM_PFX}"
+ mkdir -p "${WARM_PFX}"
+ cp -a "${PFXDIR}/." "${WARM_PFX}/"
+ chown -R steam:steam "${WARM_ROOT}" 2>/dev/null || true
+ fi
+ ) 200>"${WARM_ROOT}/.seed.lock"
+ echo "[phase 4b] Warm template ready for future matches."
 fi
 
 echo "[phase 5] Deploying deadworks..."
@@ -203,6 +298,9 @@ fi
 
 rm -f "${INSTALL_DIR}/game/citadel/console.log"
 
+# ponytail: root-owned files on host bind mounts break Proton (version file write)
+chown -R steam:steam "${COMPAT_DATA}" 2>/dev/null || true
+
 echo "[phase 6] Starting deadworks server on port ${SERVER_PORT}..."
 
 PLUGIN_EXPORTS=""
@@ -217,7 +315,13 @@ export STEAM_COMPAT_CLIENT_INSTALL_PATH='${STEAM_PATH}'
 export SteamAppId=${APP_ID}
 export SteamGameId=${APP_ID}
 export DISPLAY=:99
-export WINEDEBUG=warn+module,err+all
+export WINEDEBUG=-all
+export WINEARCH=win64
+export PROTON_USE_XALIA=0
+export PROTON_NO_ESYNC=1
+export PROTON_NO_FSYNC=1
+export PROTON_NO_NTSYNC=1
+export WINEDLLOVERRIDES="steamclient64=n;steamclient=n;tier0_s64=n;vstdlib_s64=n;xalia=d"
 export DOTNET_ROOT='C:\\Program Files\\dotnet'
 ${PLUGIN_EXPORTS}cd '${WIN64_DIR}'
 '${PROTON_DIR}/proton' run ./deadworks.exe ${SERVER_ARGS} 2>&1
@@ -240,6 +344,11 @@ kill "${TAIL_PID}" 2>/dev/null || true
 kill "${XVFB_PID}" 2>/dev/null || true
 
 echo "=== Server exited with code ${EXIT_CODE} ==="
+if [ "${EXIT_CODE}" != "0" ]; then
+ echo "--- Steam stderr ---"
+ cat "${STEAM_PATH}/logs/stderr.txt" 2>/dev/null || true
+fi
+
 if [ -f "$CONSOLE_LOG" ]; then
  tail -200 "$CONSOLE_LOG"
 fi

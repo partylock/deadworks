@@ -1,0 +1,5 @@
+<Project>
+  <PropertyGroup>
+    <AssemblySearchPaths>$(AssemblySearchPaths);/artifacts/managed</AssemblySearchPaths>
+  </PropertyGroup>
+</Project>
