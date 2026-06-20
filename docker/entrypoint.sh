@@ -315,12 +315,15 @@ export STEAM_COMPAT_CLIENT_INSTALL_PATH='${STEAM_PATH}'
 export SteamAppId=${APP_ID}
 export SteamGameId=${APP_ID}
 export DISPLAY=:99
-export WINEDEBUG=-all
-export WINEARCH=win64
-export PROTON_USE_XALIA=0
-export PROTON_NO_ESYNC=1
-export PROTON_NO_FSYNC=1
-export PROTON_NO_NTSYNC=1
+export WINEDEBUG="${WINEDEBUG:--all}"
+export WINEARCH="${WINEARCH:-win64}"
+export WINEESYNC="${WINEESYNC:-0}"
+export WINEFSYNC="${WINEFSYNC:-1}"
+export PROTON_USE_NTSYNC="${PROTON_USE_NTSYNC:-0}"
+export PROTON_NO_FSYNC="${PROTON_NO_FSYNC:-0}"
+export PROTON_USE_XALIA="${PROTON_USE_XALIA:-0}"
+export PROTON_NO_ESYNC="${PROTON_NO_ESYNC:-1}"
+export PROTON_NO_NTSYNC="${PROTON_NO_NTSYNC:-1}"
 export WINEDLLOVERRIDES="steamclient64=n;steamclient=n;tier0_s64=n;vstdlib_s64=n;xalia=d"
 export DOTNET_ROOT='C:\\Program Files\\dotnet'
 ${PLUGIN_EXPORTS}cd '${WIN64_DIR}'
