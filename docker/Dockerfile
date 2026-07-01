@@ -1,8 +1,11 @@
 # syntax=docker/dockerfile:1.4
-# Build from deadworks checkout (see Makefile `build-gameserver`).
+# App layer on top of partylock/gameserver-runtime (Proton/Steam/.NET baked separately).
 #   docker build -f docker/Dockerfile \
+#     --build-arg RUNTIME_IMAGE=partylock/gameserver-runtime:latest \
 #     --build-context extra-plugins=plugins \
 #     -t partylock/gameserver:latest .
+
+ARG RUNTIME_IMAGE=partylock/gameserver-runtime:latest
 
 FROM ubuntu:24.04 AS native-builder
 
@@ -90,62 +93,15 @@ RUN dotnet publish managed/DeadworksManaged.csproj \
  -c Release -o /artifacts/managed --no-self-contained
 
 RUN mkdir -p /artifacts/managed/plugins && \
- if find extra-plugins -name '*.csproj' -not -path '*/.*' -not -name '*.Tests.csproj' 2>/dev/null | grep -q .; then \
+ if find extra-plugins -name '*.csproj' -not -path '*/.*' -not -path '*/_backup/*' -not -name '*.Tests.csproj' 2>/dev/null | grep -q .; then \
  cp docker/plugin-assembly-paths.targets extra-plugins/Directory.Build.targets && \
- find extra-plugins -name '*.csproj' -not -path '*/.*' -not -name '*.Tests.csproj' -print0 | \
+ find extra-plugins -name '*.csproj' -not -path '*/.*' -not -path '*/_backup/*' -not -name '*.Tests.csproj' -print0 | \
  xargs -0 -r -I {} dotnet publish {} -c Release -o /artifacts/managed/plugins --no-self-contained; \
  fi
 
-FROM cm2network/steamcmd:root AS runtime
-
-RUN dpkg --add-architecture i386
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
- gosu \
- wget \
- unzip \
- lsof \
- python3 \
- netcat-openbsd \
- xvfb \
- procps \
- cabextract \
- libfreetype6 libfreetype6:i386 \
- libvulkan1 libvulkan1:i386 \
- libx11-6 libx11-6:i386 \
- libxext6 libxext6:i386 \
- libxrandr2 libxrandr2:i386 \
- libxcomposite1 libxcomposite1:i386 \
- libxcursor1 libxcursor1:i386 \
- libxi6 libxi6:i386 \
- libxfixes3 libxfixes3:i386 \
- libxrender1 libxrender1:i386 \
- libgl1 libgl1:i386 \
- libglib2.0-0 libglib2.0-0:i386 \
- libdbus-1-3 libdbus-1-3:i386 \
- libfontconfig1 libfontconfig1:i386 \
- libnss3 libnss3:i386 \
- libgdk-pixbuf-2.0-0 \
- libgtk-3-0 \
- libsdl2-2.0-0 \
- libgnutls30 libgnutls30:i386 \
- && rm -rf /var/lib/apt/lists/*
-
-RUN mkdir -p \
- /home/steam/.steam/steam/compatibilitytools.d \
- /home/steam/.steam/steam/steamapps/compatdata/1422450/pfx \
- /home/steam/server \
- /opt/proton \
- /opt/gamefiles \
- /opt/live-plugins \
- /opt/deadworks \
- /match-instance && \
- chown -R steam:steam /home/steam/.steam /home/steam/server /opt/gamefiles /opt/live-plugins /match-instance
+ARG RUNTIME_IMAGE
+FROM ${RUNTIME_IMAGE} AS runtime
 
 COPY --from=native-builder /build/out/deadworks.exe /opt/deadworks/game/bin/win64/
 COPY --from=native-builder /build/config/deadworks_mem.jsonc /opt/deadworks/game/citadel/cfg/
 COPY --from=managed-builder /artifacts/managed /opt/deadworks/game/bin/win64/managed/
-
-COPY --chmod=755 docker/entrypoint.sh /usr/local/bin/entrypoint.sh
-
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

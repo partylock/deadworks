@@ -1,6 +1,63 @@
 #!/bin/bash
 set -euo pipefail
 
+# ponytail: plugin runs in Wine and often cannot read console.log — host bash watches instead
+start_hltv_broadcast_watcher() {
+ local log="$1"
+ local match_id="${PARTYLOCK_MATCH_ID:-}"
+ local backend="${PARTYLOCK_BACKEND_URL:-}"
+ local key="${MATCH_ORCHESTRATOR_INTERNAL_KEY:-}"
+ local relay="${HLTV_RELAY_PUBLIC_URL:-${HLTV_RELAY_URL:-}}"
+ relay="${relay%/}"
+ backend="${backend%/}"
+ backend="${backend%/api/v1}"
+
+ if [ -z "$match_id" ] || [ -z "$backend" ] || [ -z "$key" ]; then
+  echo "[hltv-watcher] skipped (matchId, backend or internal key missing)"
+  return 0
+ fi
+
+ echo "[hltv-watcher] watching ${log} for broadcast token (match ${match_id})"
+ (
+  for _ in $(seq 1 150); do
+   sleep 2
+   [ -f "$log" ] || continue
+   token="$(grep -E 'Recording started|HLTV Broadcast' "$log" 2>/dev/null | grep -oE 's[0-9]+t[0-9]+' | tail -1 || true)"
+   [ -n "$token" ] || continue
+   echo "[hltv-watcher] token ${token} — notifying backend"
+   if curl -sf -m 15 -X POST "${backend}/api/v1/internal/match-broadcast-ready" \
+     -H "Content-Type: application/json" \
+     -H "X-Internal-Key: ${key}" \
+     -H "User-Agent: PartyLock-Gameserver/1.0" \
+     -d "{\"matchId\":\"${match_id}\",\"broadcastToken\":\"${token}\",\"relayPublicUrl\":\"${relay}\"}"; then
+    echo "[hltv-watcher] backend notified"
+    exit 0
+   fi
+   echo "[hltv-watcher] webhook failed, retrying"
+  done
+  echo "[hltv-watcher] gave up after 300s"
+ ) &
+}
+
+# ponytail: citadel/console.log often stays 0 bytes under Wine — plugin log on bind mount always writes
+start_docker_log_tail() {
+ local log="$1"
+ local label="${2:-log}"
+ [ -n "$log" ] || return 0
+ (
+  for _ in $(seq 1 300); do
+   [ -f "$log" ] && break
+   sleep 1
+  done
+  if [ ! -f "$log" ]; then
+   echo "[log-tail] ${label} not found (${log})"
+   exit 0
+  fi
+  echo "[log-tail] following ${label}: ${log}"
+  exec tail -F "$log"
+ ) &
+}
+
 # Deadworks Linux entrypoint (based on raimannma/deadworks) with PartyLock match hooks.
 # Per-match plugin config is bind-mounted at /match-instance/configs by the orchestrator.
 
@@ -47,7 +104,40 @@ mkdir -p "${COMPAT_DATA}"
 # ponytail: orchestrator bind-mounts instance dirs as root — steam needs ownership before wineboot
 chown -R steam:steam "${COMPAT_DATA}" "${INSTALL_DIR}" 2>/dev/null || true
 
-if [ "${GAMEFILES_DIRECT_MOUNT:-0}" = "1" ]; then
+run_phase2_steamcmd() {
+ if [ -z "${STEAM_LOGIN}" ] || [ -z "${STEAM_PASSWORD}" ]; then
+ echo "[phase 2] ERROR: STEAM_LOGIN/STEAM_PASSWORD unset"
+ echo "[phase 2] Set GAMEFILES_MOUNT or provide Steam credentials in .env"
+ exit 1
+ fi
+ mkdir -p "${GAME_BASE_DIR}"
+ chown steam:steam "${GAME_BASE_DIR}" 2>/dev/null || true
+ (
+ flock -x 200
+ MAX_RETRIES=3
+ for attempt in $(seq 1 $MAX_RETRIES); do
+ echo "[phase 2] SteamCMD attempt ${attempt}/${MAX_RETRIES}..."
+ gosu steam /home/steam/steamcmd/steamcmd.sh \
+ +@sSteamCmdForcePlatformType windows \
+ +force_install_dir "$GAME_BASE_DIR" \
+ +login "$STEAM_LOGIN" "$STEAM_PASSWORD" \
+ +app_update "$APP_ID" validate \
+ +quit && break
+ echo "[phase 2] WARNING: attempt ${attempt} failed, retrying..."
+ sleep 5
+ done
+ ) 200>"${GAME_BASE_DIR}/.download.lock"
+
+ if [ ! -f "${GAME_BASE_DIR}/game/bin/win64/deadlock.exe" ]; then
+ echo "[phase 2] ERROR: deadlock.exe not found after download"
+ exit 1
+ fi
+}
+
+if [ "${PARTYLOCK_FORCE_GAME_UPDATE:-0}" = "1" ]; then
+ echo "[phase 2] Forcing SteamCMD app_update (PARTYLOCK_FORCE_GAME_UPDATE)."
+ run_phase2_steamcmd
+elif [ "${GAMEFILES_DIRECT_MOUNT:-0}" = "1" ]; then
  if [ ! -f "${GAME_BASE_DIR}/game/bin/win64/deadlock.exe" ]; then
  echo "[phase 2] ERROR: deadlock.exe not found at ${GAME_BASE_DIR}/game/bin/win64/deadlock.exe"
  if [ -n "${GAMEFILES_HOST_ROOT:-}" ]; then
@@ -59,35 +149,14 @@ if [ "${GAMEFILES_DIRECT_MOUNT:-0}" = "1" ]; then
 elif [ -f "${GAME_BASE_DIR}/game/bin/win64/deadlock.exe" ]; then
  echo "[phase 2] Game files already present in ${GAME_BASE_DIR} — skipping SteamCMD."
 else
- if [ -z "${STEAM_LOGIN}" ] || [ -z "${STEAM_PASSWORD}" ]; then
- echo "[phase 2] ERROR: game files missing and STEAM_LOGIN/STEAM_PASSWORD unset"
- echo "[phase 2] Set GAMEFILES_MOUNT or provide Steam credentials in .env"
- exit 1
- fi
- mkdir -p "${GAME_BASE_DIR}"
- chown steam:steam "${GAME_BASE_DIR}"
- (
- flock -x 200
- MAX_RETRIES=3
- for attempt in $(seq 1 $MAX_RETRIES); do
- echo "[phase 2] SteamCMD attempt ${attempt}/${MAX_RETRIES}..."
- gosu steam /home/steam/steamcmd/steamcmd.sh \
- +@sSteamCmdForcePlatformType windows \
- +force_install_dir "$GAME_BASE_DIR" \
- +login "$STEAM_LOGIN" "$STEAM_PASSWORD" \
- +app_update "$APP_ID" \
- +quit && break
- echo "[phase 2] WARNING: attempt ${attempt} failed, retrying..."
- sleep 5
- done
- ) 200>"${GAME_BASE_DIR}/.download.lock"
-
- if [ ! -f "${GAME_BASE_DIR}/game/bin/win64/deadlock.exe" ]; then
- echo "[phase 2] ERROR: deadlock.exe not found after download"
- exit 1
- fi
+ run_phase2_steamcmd
 fi
 echo "[phase 2] Game files verified."
+
+if [ "${PARTYLOCK_EFS_WARMUP_ONLY:-0}" = "1" ]; then
+ echo "[warmup] EFS gamefiles ready — exiting (PARTYLOCK_EFS_WARMUP_ONLY)."
+ exit 0
+fi
 
 if [ "${GAMEFILES_DIRECT_MOUNT:-0}" = "1" ]; then
  # ponytail: Wine cannot execute PEs from Docker Desktop 9p source mounts
@@ -273,14 +342,58 @@ if [ -d /match-instance/configs ]; then
  mkdir -p "${WIN64_DIR}/configs"
  cp -rf /match-instance/configs/. "${WIN64_DIR}/configs/"
  chown -Rh steam:steam "${WIN64_DIR}/configs"
+elif [ -n "${PARTYLOCK_PLUGIN_CONFIG_JSON:-}" ]; then
+ echo "[phase 5b] Applying PartyLock match config from PARTYLOCK_PLUGIN_CONFIG_JSON ..."
+ mkdir -p "${WIN64_DIR}/configs/PartyLockCorePlugin"
+ printf '%s\n' "${PARTYLOCK_PLUGIN_CONFIG_JSON}" > "${WIN64_DIR}/configs/PartyLockCorePlugin/PartyLockCorePlugin.jsonc"
+ chown -Rh steam:steam "${WIN64_DIR}/configs"
+fi
+
+# ponytail: Wine/.NET often misses Linux env — derive match id from plugin config JSON
+if [ -z "${PARTYLOCK_MATCH_ID:-}" ] && [ -n "${PARTYLOCK_PLUGIN_CONFIG_JSON:-}" ]; then
+ _pl_match_id="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("MatchId",""))' "${PARTYLOCK_PLUGIN_CONFIG_JSON}" 2>/dev/null || true)"
+ if [ -n "${_pl_match_id}" ]; then
+  export PARTYLOCK_MATCH_ID="${_pl_match_id}"
+  echo "[phase 5b] PARTYLOCK_MATCH_ID from plugin config: ${PARTYLOCK_MATCH_ID}"
+ fi
+ unset _pl_match_id
+fi
+
+# ponytail: Fargate tasks get a public IP via checkip when orchestrator passes auto
+if [ "${MATCH_PUBLIC_HOST:-}" = "auto" ]; then
+ MATCH_PUBLIC_HOST="$(curl -sf --max-time 5 http://checkip.amazonaws.com/ | tr -d '[:space:]' || true)"
+ if [ -n "${MATCH_PUBLIC_HOST}" ]; then
+ echo "[phase 5c] Discovered public IP: ${MATCH_PUBLIC_HOST}"
+ fi
 fi
 
 echo "[phase 5] Deadworks deployed."
 
-SERVER_ARGS="-dedicated -console -dev -insecure -allow_no_lobby_connect -con_logfile console.log"
+CONSOLE_LOG="${INSTALL_DIR}/game/citadel/console.log"
+export PARTYLOCK_CONSOLE_LOG="${CONSOLE_LOG}"
+
+SERVER_ARGS="-dedicated -console -dev -insecure -allow_no_lobby_connect -con_logfile ../../citadel/console.log"
 SERVER_ARGS="${SERVER_ARGS} +log 1 +ip 0.0.0.0 +sv_hibernate_when_empty 0"
-SERVER_ARGS="${SERVER_ARGS} +hostport ${SERVER_PORT} +map ${SERVER_MAP} +tv_enable 0"
+SERVER_ARGS="${SERVER_ARGS} +hostport ${SERVER_PORT} +map ${SERVER_MAP}"
 SERVER_ARGS="${SERVER_ARGS} +tv_citadel_auto_record 0 +spec_replay_enable 0 +citadel_upload_replay_enabled 0"
+
+if [ "${HLTV_BROADCAST_ENABLED:-0}" = "1" ] && [ -n "${HLTV_RELAY_URL:-}" ] && [ -n "${HLTV_RELAY_AUTH_KEY:-}" ]; then
+ # ponytail: trailing slash on relay URL becomes //s{token} in engine POSTs → relay 404
+ HLTV_RELAY_URL="${HLTV_RELAY_URL%/}"
+ HLTV_RELAY_PUBLIC_URL="${HLTV_RELAY_PUBLIC_URL:-$HLTV_RELAY_URL}"
+ HLTV_RELAY_PUBLIC_URL="${HLTV_RELAY_PUBLIC_URL%/}"
+ export HLTV_RELAY_PUBLIC_URL
+ echo "[phase 5] HLTV broadcast enabled -> ${HLTV_RELAY_URL}"
+ SERVER_ARGS="${SERVER_ARGS} +tv_enable 1 +tv_broadcast 1 +tv_delay 90 +tv_port 27020"
+ SERVER_ARGS="${SERVER_ARGS} +tv_broadcast_url \"${HLTV_RELAY_URL}\""
+ SERVER_ARGS="${SERVER_ARGS} +tv_broadcast_origin_auth ${HLTV_RELAY_AUTH_KEY}"
+ SERVER_ARGS="${SERVER_ARGS} +tv_advertise_watchable 1"
+ if [ -n "${PARTYLOCK_MATCH_ID:-}" ]; then
+  SERVER_ARGS="${SERVER_ARGS} +tv_title partylock-${PARTYLOCK_MATCH_ID}"
+ fi
+else
+ SERVER_ARGS="${SERVER_ARGS} +tv_enable 0"
+fi
 
 if [ -n "$MATCH_PUBLIC_HOST" ] && [ "$MATCH_PUBLIC_HOST" != "127.0.0.1" ] && [ "$MATCH_PUBLIC_HOST" != "localhost" ]; then
  SERVER_ARGS="${SERVER_ARGS} +net_public_adr ${MATCH_PUBLIC_HOST}"
@@ -296,17 +409,25 @@ if [ -n "$DEADWORKS_ARGS" ]; then
  SERVER_ARGS="${SERVER_ARGS} ${DEADWORKS_ARGS}"
 fi
 
-rm -f "${INSTALL_DIR}/game/citadel/console.log"
+rm -f "${CONSOLE_LOG}" "${WIN64_DIR}/console.log"
 
 # ponytail: root-owned files on host bind mounts break Proton (version file write)
 chown -R steam:steam "${COMPAT_DATA}" 2>/dev/null || true
 
 echo "[phase 6] Starting deadworks server on port ${SERVER_PORT}..."
+echo "[phase 6] docker logs will follow engine console.log + partylock plugin log (Wine often silences console.log)"
+_pl_backend="${PARTYLOCK_BACKEND_URL:-}"
+_pl_key_state="$([ -n "${MATCH_ORCHESTRATOR_INTERNAL_KEY:-}" ] && echo set || echo MISSING)"
+echo "[phase 6] Webhook env: matchId=${PARTYLOCK_MATCH_ID:-MISSING} backend=${_pl_backend:-MISSING} internalKey=${_pl_key_state}"
+if [ "${HLTV_BROADCAST_ENABLED:-0}" = "1" ]; then
+ echo "[phase 6] HLTV env: relay=${HLTV_RELAY_URL:-MISSING} auth=${HLTV_RELAY_AUTH_KEY:+set}"
+fi
+unset _pl_backend _pl_key_state
 
 PLUGIN_EXPORTS=""
 while IFS='=' read -r key val; do
  PLUGIN_EXPORTS+="export ${key}='${val}'"$'\n'
-done < <(env | grep -E '^(DEADWORKS_ENV_|PARTYLOCK_|MATCH_ORCHESTRATOR_INTERNAL_KEY)')
+done < <(env | grep -E '^(DEADWORKS_ENV_|PARTYLOCK_|MATCH_ORCHESTRATOR_INTERNAL_KEY|HLTV_)')
 
 cat > /tmp/run_server.sh << SERVSCRIPT
 #!/bin/bash
@@ -331,22 +452,38 @@ ${PLUGIN_EXPORTS}cd '${WIN64_DIR}'
 SERVSCRIPT
 chmod +x /tmp/run_server.sh
 
-CONSOLE_LOG="${INSTALL_DIR}/game/citadel/console.log"
 mkdir -p "$(dirname "$CONSOLE_LOG")"
 touch "$CONSOLE_LOG"
 chown steam:steam "$CONSOLE_LOG"
-tail -F "$CONSOLE_LOG" &
+
+PARTYLOCK_LOG_DIR="${PARTYLOCK_LOG_DIR:-${INSTALL_DIR}/logs}"
+mkdir -p "${PARTYLOCK_LOG_DIR}"
+chown -R steam:steam "${PARTYLOCK_LOG_DIR}" 2>/dev/null || true
+PL_LOG="${PARTYLOCK_LOG_DIR}/partylock-${PARTYLOCK_MATCH_ID}.log"
+
+start_docker_log_tail "$CONSOLE_LOG" "engine console"
+start_docker_log_tail "$PL_LOG" "partylock plugin"
 TAIL_PID=$!
+
+if [ "${HLTV_BROADCAST_ENABLED:-0}" = "1" ]; then
+ start_hltv_broadcast_watcher "$CONSOLE_LOG"
+fi
 
 gosu steam bash /tmp/run_server.sh &
 SERVER_PID=$!
 wait $SERVER_PID
 EXIT_CODE=$?
 
+kill $(jobs -p) 2>/dev/null || true
 kill "${TAIL_PID}" 2>/dev/null || true
 kill "${XVFB_PID}" 2>/dev/null || true
 
 echo "=== Server exited with code ${EXIT_CODE} ==="
+PARTYLOCK_LOG_DIR="${PARTYLOCK_LOG_DIR:-${INSTALL_DIR}/logs}"
+if compgen -G "${PARTYLOCK_LOG_DIR}/partylock"*.log > /dev/null 2>&1; then
+ echo "--- PartyLock log (last 80 lines) ---"
+ tail -80 "${PARTYLOCK_LOG_DIR}"/partylock*.log 2>/dev/null || true
+fi
 if [ "${EXIT_CODE}" != "0" ]; then
  echo "--- Steam stderr ---"
  cat "${STEAM_PATH}/logs/stderr.txt" 2>/dev/null || true
