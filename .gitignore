@@ -10,8 +10,6 @@ managed/**/bin/
 managed/**/obj/
 examples/**/bin/
 examples/**/obj/
-plugins/**/bin/
-plugins/**/obj/
 cvarlist.md
 dlw/
 deps/
