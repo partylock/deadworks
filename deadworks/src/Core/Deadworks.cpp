@@ -257,13 +257,23 @@ void Deadworks::PostInit() {
 
     // Resolve statics needed by Native* callbacks
     ResolveNativeStatics();
+    // Proton: manifest hook can fire before ApplyGameSettings; init .NET here so precache runs inline.
+    EnsureManagedInitialized();
+}
+
+// Idempotent — safe from PostInit and ApplyGameSettings.
+void Deadworks::EnsureManagedInitialized() {
+    if (m_dotnetInitialized)
+        return;
+
+    m_dotnetInitialized = true;
+    InitializeManagedCallbacks(m_dotnetHost, m_managed);
 }
 
 void Deadworks::On_ISource2Server_ApplyGameSettings() {
-    if (!m_dotnetInitialized) {
-        m_dotnetInitialized = true;
-        InitializeManagedCallbacks(m_dotnetHost, m_managed);
-    }
+    EnsureManagedInitialized();
+    // Fallback if manifest hook ran before PostInit path (should be rare after early init).
+    FlushDeferredPluginPrecache();
 }
 
 void Deadworks::On_StartupServer(const char *pszMapName) {
@@ -437,13 +447,59 @@ void Deadworks::OnEntityDeleted(CEntityInstance *pEntity) {
         m_managed.onEntityDeleted(pEntity);
 }
 
-void Deadworks::OnBuildGameSessionManifest(void *manifest) {
-    if (!m_managed.onPrecacheResources || !manifest)
+void Deadworks::DispatchPluginPrecache(void *manifest, PluginResourceCtx *resourceCtx) {
+    // Single path for hook and deferred flush; sets g_pCurrentManifest for Precache.Add*.
+    if (!m_managed.onPrecacheResources || !manifest || !resourceCtx)
         return;
 
+    resourceCtx->manifest = manifest;
+    g_pCurrentResourceCtx = resourceCtx;
     g_pCurrentManifest = manifest;
     m_managed.onPrecacheResources();
     g_pCurrentManifest = nullptr;
+    g_pCurrentResourceCtx = nullptr;
+}
+
+void Deadworks::OnBuildGameSessionManifest(void *gameRules, void **manifestSlot, PluginResourceCtx *resourceCtx) {
+    if (!gameRules || !manifestSlot || !resourceCtx)
+        return;
+
+    if (!m_managed.onPrecacheResources) {
+        // Keep slot pointer (game rules member), not *manifest — stale copy crashes AddHero on flush.
+        m_pendingGameRules = gameRules;
+        m_pendingManifestSlot = manifestSlot;
+        g_Log->Info("Deferred plugin precache until .NET runtime is ready (rules={:p})", gameRules);
+        return;
+    }
+
+    void *manifest = *manifestSlot;
+    if (!manifest)
+        return;
+
+    DispatchPluginPrecache(manifest, resourceCtx);
+}
+
+void Deadworks::FlushDeferredPluginPrecache() {
+    if (!m_pendingManifestSlot || !m_managed.onPrecacheResources)
+        return;
+
+    void **manifestSlot = m_pendingManifestSlot;
+    m_pendingGameRules = nullptr;
+    m_pendingManifestSlot = nullptr;
+
+    if (!IsHeroPrecacheResolved())
+        ResolveHeroPrecacheFns();
+
+    void *manifest = manifestSlot ? *manifestSlot : nullptr;
+    if (!manifest) {
+        g_Log->Warning("Deferred precache skipped — manifest slot empty");
+        return;
+    }
+
+    PluginResourceCtx resourceCtx{};
+    g_Log->Info("Flushing deferred plugin precache (manifest={:p})", manifest);
+    // Do not re-call BuildGameSessionManifest — .call() skips our hook and never runs plugins.
+    DispatchPluginPrecache(manifest, &resourceCtx);
 }
 
 void Deadworks::On_ISource2Server_GameFrame(bool simulating, bool bFirstTick, bool bLastTick) {

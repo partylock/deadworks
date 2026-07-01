@@ -30,6 +30,13 @@ extern IGameEventSystem *g_pGameEventSystem;
 
 namespace deadworks {
 
+// Layout expected by CCitadelGameRules hero precache (AddResource / AddHero natives).
+struct PluginResourceCtx {
+    int64_t a = 0;
+    int64_t b = 0;
+    void *manifest = nullptr;
+};
+
 class Deadworks {
 public:
     void InitFromAppSystem(CAppSystemDict *pAppSystem);
@@ -68,8 +75,10 @@ public:
     void OnEntityDeleted(CEntityInstance *pEntity);
     // Client ConCommands
     bool OnPre_ClientConCommand(void *controller, void *args);
-    // Precache
-    void OnBuildGameSessionManifest(void *manifest);
+    // Precache — see DispatchPluginPrecache / EnsureManagedInitialized in Deadworks.cpp
+    void OnBuildGameSessionManifest(void *gameRules, void **manifestSlot, PluginResourceCtx *resourceCtx);
+    void EnsureManagedInitialized();
+    void FlushDeferredPluginPrecache();
     // Touch events
     void OnStartTouch(CBaseEntity *entity, CBaseEntity *other);
     void OnEndTouch(CBaseEntity *entity, CBaseEntity *other);
@@ -106,6 +115,7 @@ public:
     }
 
 private:
+    void DispatchPluginPrecache(void *manifest, PluginResourceCtx *resourceCtx);
     void GetInterfaceFactories();
 
     struct CInterfaceFactories {
@@ -125,6 +135,9 @@ private:
     DotNetHost m_dotnetHost;
     bool m_dotnetInitialized = false;
     ManagedCallbacks m_managed{};
+    // Set when manifest hook runs before onPrecacheResources is bound (Docker/Proton boot order).
+    void *m_pendingGameRules = nullptr;
+    void **m_pendingManifestSlot = nullptr;
 };
 
 inline Deadworks g_Deadworks;

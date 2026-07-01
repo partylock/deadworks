@@ -8,14 +8,10 @@ __int64 __fastcall deadworks::hooks::Hook_BuildGameSessionManifest(void *thisptr
     if (!IsHeroPrecacheResolved())
         ResolveHeroPrecacheFns();
 
-    // Build resource context for hero precaching: {int128 zero, manifest_ptr}
-    struct { __int64 a; __int64 b; void *manifest; } resourceCtx = { 0, 0, *a2 };
-    g_pCurrentResourceCtx = &resourceCtx;
-
-    // Let managed plugins precache resources (including heroes)
     void *manifest = *a2;
-    g_Deadworks.OnBuildGameSessionManifest(manifest);
-
-    g_pCurrentResourceCtx = nullptr;
+    PluginResourceCtx resourceCtx{};
+    resourceCtx.manifest = manifest;
+    // manifestSlot lets core defer or read fresh *a2 on flush without re-entering this hook.
+    g_Deadworks.OnBuildGameSessionManifest(thisptr, a2, &resourceCtx);
     return result;
 }
