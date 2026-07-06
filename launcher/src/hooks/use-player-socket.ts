@@ -51,9 +51,24 @@ export function usePlayerSocket(
     if (!token) return;
     try {
       const state = await fetchLauncherState(apiEndpoint, token);
+      const hasActiveMatch =
+        state.matchProvisioning ?? state.matchReady ?? state.matchConnectStatus;
+
+      if (!hasActiveMatch) {
+        setMatchProvisioning(null);
+        setMatchReady(null);
+        setMatchConnectStatus(null);
+        return;
+      }
+
       setMatchProvisioning(state.matchProvisioning);
-      setMatchReady(state.matchReady);
-      setMatchConnectStatus(state.matchConnectStatus);
+      // ponytail: poll must not wipe WS match-ready while late provision steps still stream
+      if (state.matchReady) {
+        setMatchReady(state.matchReady);
+      }
+      if (state.matchConnectStatus) {
+        setMatchConnectStatus(state.matchConnectStatus);
+      }
     } catch {
       // ponytail: REST sync is best-effort; WS remains primary
     }

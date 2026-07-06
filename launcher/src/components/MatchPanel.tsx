@@ -87,7 +87,7 @@ export default function MatchPanel({
         </div>
       )}
 
-      {isProvisioning && (
+      {isProvisioning && !canConnect && (
         <div className={styles.card}>
           <h2 className={styles.title}>Preparando servidor</h2>
           <p className={styles.subtitle}>{matchProvisioning?.label}</p>
@@ -105,6 +105,9 @@ export default function MatchPanel({
       {canConnect && matchReady && (
         <div className={styles.card}>
           <h2 className={styles.title}>Partida pronta</h2>
+          {isProvisioning && matchProvisioning?.label && (
+            <p className={styles.subtitle}>{matchProvisioning.label}</p>
+          )}
           <p className={styles.subtitle}>
             Servidor disponível. Clique para baixar mods (se necessário) e conectar.
           </p>

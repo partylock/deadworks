@@ -95,13 +95,166 @@ fn ensure_dir(path: &Path) -> Result<(), String> {
         .map_err(|e| format!("Failed to create directory {}: {}", path.display(), e))
 }
 
-fn target_dir_for(kind: &str, game_dir: &Path) -> Result<PathBuf, String> {
+fn target_dir_for(kind: &str, game_dir: &Path, filename: &str) -> Result<PathBuf, String> {
     let citadel = game_dir.join("citadel");
     match kind {
         "map" => Ok(citadel.join("maps")),
         "addon" => Ok(citadel.join("partylock_addons").join("vpks")),
+        "skin" => Ok(citadel.join("partylock_skins").join("extra").join(filename)),
         other => Err(format!("Unknown content kind: {}", other)),
     }
+}
+
+fn skin_cache_archive(game_dir: &Path, filename: &str, version: u64) -> PathBuf {
+    game_dir
+        .join("citadel")
+        .join("partylock_skins")
+        .join("cache")
+        .join(format!("{}_v{}.7z", filename, version))
+}
+
+/// ponytail: Google Drive file id → direct download; large files may need confirm retry.
+fn normalize_skin_download_url(url: &str) -> String {
+    let trimmed = url.trim();
+    if let Some(id) = trimmed.strip_prefix("gdrive:") {
+        return format!(
+            "https://drive.google.com/uc?export=download&id={}",
+            id.trim()
+        );
+    }
+    if trimmed.contains("drive.google.com") {
+        if let Some(id) = trimmed.split("id=").nth(1).and_then(|rest| rest.split('&').next()) {
+            return format!(
+                "https://drive.google.com/uc?export=download&id={}",
+                id
+            );
+        }
+    }
+    trimmed.to_string()
+}
+
+fn is_7z_payload(bytes: &[u8]) -> bool {
+    bytes.len() >= 6 && &bytes[..6] == b"7z\xBC\xAF\x27\x1C"
+}
+
+fn parse_gdrive_confirm_token(html: &str) -> Option<String> {
+    for needle in ["confirm=", "confirm%3D"] {
+        let rest = html.split(needle).nth(1)?;
+        let token: String = rest
+            .chars()
+            .take_while(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-')
+            .collect();
+        if !token.is_empty() {
+            return Some(token);
+        }
+    }
+    None
+}
+
+fn extract_skin_7z(archive_path: &Path, dest_dir: &Path) -> Result<(), String> {
+    sevenz_rust::decompress_file(archive_path, dest_dir).map_err(|e| {
+        format!(
+            "Failed to extract skin archive {}: {}",
+            archive_path.display(),
+            e
+        )
+    })
+}
+
+async fn download_skin_archive(
+    url: &str,
+    dest_7z: &Path,
+    item_name: &str,
+    index: usize,
+    total: usize,
+    window: &tauri::Window,
+) -> Result<(), String> {
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::limited(10))
+        .build()
+        .map_err(|e| format!("HTTP client error: {}", e))?;
+
+    let base_url = normalize_skin_download_url(url);
+    let mut response = client
+        .get(&base_url)
+        .send()
+        .await
+        .map_err(|e| format!("Download request failed for {}: {}", item_name, e))?;
+
+    if !response.status().is_success() {
+        return Err(format!(
+            "Download failed for {}: HTTP {}",
+            item_name,
+            response.status()
+        ));
+    }
+
+    let mut bytes = response
+        .bytes()
+        .await
+        .map_err(|e| format!("Download read failed for {}: {}", item_name, e))?
+        .to_vec();
+
+    if !is_7z_payload(&bytes) {
+        let html = String::from_utf8_lossy(&bytes);
+        if let Some(token) = parse_gdrive_confirm_token(&html) {
+            let confirm_url = if base_url.contains('?') {
+                format!("{base_url}&confirm={token}")
+            } else {
+                format!("{base_url}?confirm={token}")
+            };
+            response = client
+                .get(&confirm_url)
+                .send()
+                .await
+                .map_err(|e| format!("Google Drive confirm retry failed: {}", e))?;
+            if !response.status().is_success() {
+                return Err(format!(
+                    "Google Drive confirm failed for {}: HTTP {}",
+                    item_name,
+                    response.status()
+                ));
+            }
+            bytes = response
+                .bytes()
+                .await
+                .map_err(|e| format!("Download read failed for {}: {}", item_name, e))?
+                .to_vec();
+        }
+    }
+
+    if !is_7z_payload(&bytes) {
+        return Err(format!(
+            "Download for {} is not a .7z archive (check Google Drive link is public)",
+            item_name
+        ));
+    }
+
+    let total_bytes = bytes.len() as u64;
+    let tmp = dest_7z.with_extension("7z.part");
+    if let Some(parent) = tmp.parent() {
+        ensure_dir(parent)?;
+    }
+
+    tokio::fs::write(&tmp, &bytes)
+        .await
+        .map_err(|e| format!("Failed to write temp 7z: {}", e))?;
+
+    let _ = window.emit(
+        "download-progress",
+        DownloadProgress {
+            name: item_name.to_string(),
+            status: "downloading".into(),
+            bytes_downloaded: total_bytes,
+            total_bytes,
+            item_index: index,
+            total_items: total,
+        },
+    );
+
+    tokio::fs::rename(&tmp, dest_7z)
+        .await
+        .map_err(|e| format!("Failed to finalize skin 7z: {}", e))
 }
 
 fn versions_path(game_dir: &Path) -> PathBuf {
@@ -322,6 +475,80 @@ async fn download_and_decompress(
     }
 }
 
+fn skin_version_marker(extra_dir: &Path) -> PathBuf {
+    extra_dir.join(".partylock_version")
+}
+
+fn read_skin_marker_version(extra_dir: &Path) -> Option<u64> {
+    std::fs::read_to_string(skin_version_marker(extra_dir))
+        .ok()
+        .and_then(|raw| raw.trim().parse::<u64>().ok())
+}
+
+fn write_skin_marker_version(extra_dir: &Path, version: u64) -> Result<(), String> {
+    ensure_dir(extra_dir)?;
+    std::fs::write(skin_version_marker(extra_dir), version.to_string())
+        .map_err(|e| format!("Failed to write skin version marker: {}", e))
+}
+
+async fn download_and_install_skin(
+    url: &str,
+    game_dir: &Path,
+    filename: &str,
+    version: u64,
+    item_name: &str,
+    index: usize,
+    total: usize,
+    window: &tauri::Window,
+) -> Result<(), String> {
+    let extra_dir = target_dir_for("skin", game_dir, filename)?;
+    let cache_7z = skin_cache_archive(game_dir, filename, version);
+
+    let _ = window.emit(
+        "download-progress",
+        DownloadProgress {
+            name: item_name.to_string(),
+            status: "checking".into(),
+            bytes_downloaded: 0,
+            total_bytes: 0,
+            item_index: index,
+            total_items: total,
+        },
+    );
+
+    if !cache_7z.exists() {
+        download_skin_archive(url, &cache_7z, item_name, index, total, window).await?;
+    }
+
+    if extra_dir.exists() {
+        let _ = std::fs::remove_dir_all(&extra_dir);
+    }
+    ensure_dir(&extra_dir)?;
+
+    let archive_path = cache_7z.clone();
+    let extra_clone = extra_dir.clone();
+    let name = item_name.to_string();
+    let win = window.clone();
+    tokio::task::spawn_blocking(move || extract_skin_7z(&archive_path, &extra_clone))
+        .await
+        .map_err(|e| format!("Extract task failed: {}", e))??;
+
+    write_skin_marker_version(&extra_dir, version)?;
+
+    let _ = win.emit(
+        "download-progress",
+        DownloadProgress {
+            name,
+            status: "ready".into(),
+            bytes_downloaded: 0,
+            total_bytes: 0,
+            item_index: index,
+            total_items: total,
+        },
+    );
+    Ok(())
+}
+
 // ── Main command ──
 
 /// Resolve PartyLock API base (`/api/v1`) from persisted settings.
@@ -414,22 +641,76 @@ async fn install_manifest_items(
     let game_dir = find_game_dir()?;
     let addons_dir = game_dir.join("citadel").join("partylock_addons").join("vpks");
     let maps_dir = game_dir.join("citadel").join("maps");
+    let skins_cache_dir = game_dir.join("citadel").join("partylock_skins").join("cache");
+    let skins_extra_dir = game_dir.join("citadel").join("partylock_skins").join("extra");
     ensure_dir(&addons_dir)?;
     ensure_dir(&maps_dir)?;
+    ensure_dir(&skins_cache_dir)?;
+    ensure_dir(&skins_extra_dir)?;
 
     let mut state = load_versions(&game_dir);
     let total_items = manifest.items.len();
 
     for (idx, item) in manifest.items.iter().enumerate() {
-        let target_dir = target_dir_for(&item.kind, &game_dir)?;
+        let display_name = match item.kind.as_str() {
+            "map" => format!("Map: {}", item.filename),
+            "skin" => format!("Skin: {}", item.filename),
+            _ => item.filename.clone(),
+        };
+
+        if item.kind == "skin" {
+            let extra_dir = target_dir_for("skin", &game_dir, &item.filename)?;
+            let cache_7z = skin_cache_archive(&game_dir, &item.filename, item.version);
+            let already_current = extra_dir.exists()
+                && cache_7z.exists()
+                && read_skin_marker_version(&extra_dir).unwrap_or(0) == item.version
+                && state
+                    .managed
+                    .get(&item.filename)
+                    .map(|e| e.version == item.version && e.kind == item.kind)
+                    .unwrap_or(false);
+
+            if already_current {
+                let _ = window.emit(
+                    "download-progress",
+                    DownloadProgress {
+                        name: display_name.clone(),
+                        status: "ready".into(),
+                        bytes_downloaded: item.compressed_size,
+                        total_bytes: item.compressed_size,
+                        item_index: idx,
+                        total_items,
+                    },
+                );
+                continue;
+            }
+
+            download_and_install_skin(
+                &item.download_url,
+                &game_dir,
+                &item.filename,
+                item.version,
+                &display_name,
+                idx,
+                total_items,
+                window,
+            )
+            .await?;
+
+            state.managed.insert(
+                item.filename.clone(),
+                VersionEntry {
+                    kind: item.kind.clone(),
+                    version: item.version,
+                },
+            );
+            save_versions(&game_dir, &state)?;
+            continue;
+        }
+
+        let target_dir = target_dir_for(&item.kind, &game_dir, &item.filename)?;
         let vpk_filename = format!("{}.vpk", item.filename);
         let dest_vpk = target_dir.join(&vpk_filename);
-
-        let display_name = if item.kind == "map" {
-            format!("Map: {}", item.filename)
-        } else {
-            item.filename.clone()
-        };
 
         let already_current = dest_vpk.exists()
             && state

@@ -53,7 +53,7 @@ export interface MatchFailedNotification {
   reason: string;
 }
 
-export type ContentKind = "map" | "addon";
+export type ContentKind = "map" | "addon" | "skin";
 
 export interface ContentManifestItem {
   filename: string;
