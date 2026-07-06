@@ -42,8 +42,9 @@ jobs:
           $installer = Get-ChildItem $bundle -Filter "*.exe" | Select-Object -First 1
           if (-not $installer) { throw "Nenhum .exe em $bundle" }
           New-Item -ItemType Directory -Force -Path release-assets | Out-Null
-          Copy-Item $installer.FullName "release-assets/$($installer.Name)"
-          Write-Host "Instalador: $($installer.Name) ($([math]::Round($installer.Length / 1MB, 2)) MB)"
+          Copy-Item $installer.FullName "release-assets/PartyLock-setup-x64.exe"
+          Write-Host "Instalador: PartyLock-setup-x64.exe ($([math]::Round($installer.Length / 1MB, 2)) MB)"
+          Write-Host "Latest: https://github.com/partylock/deadworks/releases/latest/download/PartyLock-setup-x64.exe"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -84,7 +85,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path release-assets | Out-Null
-          Copy-Item src-tauri/target/release/bundle/nsis/*.exe release-assets/
+          Copy-Item src-tauri/target/release/bundle/nsis/*.exe release-assets/PartyLock-setup-x64.exe
 
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4

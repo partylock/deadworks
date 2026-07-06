@@ -38,6 +38,12 @@ O instalador `.exe` (NSIS) sai em:
 
 Esse arquivo é o que você publica para download.
 
+Link fixo (sempre aponta para a última release):
+
+`https://github.com/partylock/deadworks/releases/latest/download/PartyLock-setup-x64.exe`
+
+O CI renomeia o instalador para `PartyLock-setup-x64.exe` em cada release — o nome precisa ser sempre o mesmo para o `/latest/download/` funcionar.
+
 ### API de produção
 
 Release builds apontam para `https://api.partylock.com.br/api/v1` (via `.env.production` e fallback no código). Para outro endpoint no build:

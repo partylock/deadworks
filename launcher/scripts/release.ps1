@@ -25,6 +25,7 @@ param(
     [switch]$Push,
     [switch]$Commit,
     [switch]$Retag,
+    [switch]$GhUpload,
     [switch]$DryRun
 )
 
@@ -113,10 +114,69 @@ function Set-LauncherVersion([string]$NewVersion) {
     }
 }
 
-function Get-InstallerFile([string]$BundleDir) {
-    $file = @(Get-ChildItem $BundleDir -Filter "*.exe" -ErrorAction SilentlyContinue)[0]
-    if (-not $file) { return $null }
-    return $file
+function Get-InstallerFile([string]$SearchDir, [string]$Version = "") {
+    $files = @(Get-ChildItem $SearchDir -Filter "*.exe" -ErrorAction SilentlyContinue)
+    if ($files.Count -eq 0) { return $null }
+    if ($Version) {
+        $matched = @($files | Where-Object { $_.Name -like "*_$Version_*" })
+        if ($matched.Count -gt 0) { return $matched[0] }
+    }
+    return ($files | Sort-Object LastWriteTime -Descending)[0]
+}
+
+function Resolve-Installer([string]$Version) {
+    $bundleDir = Join-Path $LauncherRoot "src-tauri\target\release\bundle\nsis"
+    $assetsDir = Join-Path $LauncherRoot "release-assets"
+    foreach ($dir in @($bundleDir, $assetsDir)) {
+        $file = Get-InstallerFile $dir $Version
+        if ($file) { return $file }
+    }
+    return $null
+}
+
+$Script:LauncherAssetName = "PartyLock-setup-x64.exe"
+$Script:LauncherDownloadUrl = "https://github.com/partylock/deadworks/releases/latest/download/PartyLock-setup-x64.exe"
+
+function Get-GhRepo {
+    $url = Invoke-Git -GitArgs @("-C", $LauncherRoot, "remote", "get-url", "origin") -ReadOutput
+    if ($url -match "github\.com[:/](.+?)(?:\.git)?$") {
+        return $matches[1]
+    }
+    return "partylock/deadworks"
+}
+
+function Copy-LauncherReleaseAsset($Installer) {
+    $assetsDir = Join-Path $LauncherRoot "release-assets"
+    New-Item -ItemType Directory -Force -Path $assetsDir | Out-Null
+    $assetPath = Join-Path $assetsDir $Script:LauncherAssetName
+    Copy-Item $Installer.FullName $assetPath -Force
+    return Get-Item $assetPath
+}
+
+function Get-GhExe {
+    $gh = Get-Command gh -ErrorAction SilentlyContinue
+    if ($gh) { return $gh.Source }
+
+    $default = "C:\Program Files\GitHub CLI\gh.exe"
+    if (Test-Path $default) { return $default }
+
+    return $null
+}
+
+function Invoke-Gh {
+    param([string[]]$GhArgs = @())
+
+    $ghExe = Get-GhExe
+    if (-not $ghExe) { return @{ Found = $false; ExitCode = 127 } }
+
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        & $ghExe @GhArgs 2>&1 | Out-Null
+        return @{ Found = $true; ExitCode = $LASTEXITCODE }
+    } finally {
+        $ErrorActionPreference = $prev
+    }
 }
 
 function Invoke-LauncherBuild {
@@ -129,9 +189,7 @@ function Invoke-LauncherBuild {
     $bundleDir = Join-Path $LauncherRoot "src-tauri\target\release\bundle\nsis"
     $installer = Get-InstallerFile $bundleDir
     if ($installer) {
-        $assetsDir = Join-Path $LauncherRoot "release-assets"
-        New-Item -ItemType Directory -Force -Path $assetsDir | Out-Null
-        Copy-Item $installer.FullName (Join-Path $assetsDir $installer.Name) -Force
+        Copy-LauncherReleaseAsset $installer | Out-Null
     }
     return $installer
 }
@@ -139,32 +197,54 @@ function Invoke-LauncherBuild {
 function Invoke-GhReleaseUpload([string]$NewVersion, $Installer) {
     if ($Installer -is [System.Array]) { $Installer = $Installer[0] }
     if (-not $Installer) { return }
-    if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
-        Write-Host "gh CLI nao encontrado; o CI anexa o instalador na GitHub Release." -ForegroundColor DarkGray
+
+    $ghExe = Get-GhExe
+    if (-not $ghExe) {
+        Write-Host "gh CLI nao encontrado. Instale: winget install GitHub.cli" -ForegroundColor Yellow
         return
     }
 
     $tagName = "launcher-v$NewVersion"
+    $repo = Get-GhRepo
     if ($DryRun) {
-        Write-Host "[dry-run] gh release upload $tagName $($Installer.FullName)" -ForegroundColor DarkGray
+        Write-Host "[dry-run] gh release upload $tagName --repo $repo" -ForegroundColor DarkGray
         return
     }
 
-    Write-Host "Anexando instalador na GitHub Release ($tagName)..." -ForegroundColor Cyan
-    $maxAttempts = 12
-    for ($i = 1; $i -le $maxAttempts; $i++) {
-        gh release upload $tagName $Installer.FullName --clobber 2>$null
-        if ($LASTEXITCODE -eq 0) {
-            Write-Host "Instalador publicado na release." -ForegroundColor Green
-            return
-        }
-        if ($i -lt $maxAttempts) {
-            Write-Host "Aguardando CI criar a release... ($i/$maxAttempts)" -ForegroundColor DarkGray
-            Start-Sleep -Seconds 15
-        }
+    $auth = Invoke-Gh -GhArgs @("auth", "status")
+    if ($auth.ExitCode -ne 0) {
+        Write-Host "gh nao autenticado. Rode uma vez: gh auth login" -ForegroundColor Yellow
+        return
     }
 
-    Write-Host "Nao foi possivel anexar via gh; verifique a release no GitHub apos o CI." -ForegroundColor Yellow
+    $asset = Copy-LauncherReleaseAsset $Installer
+    Write-Host "Publicando instalador na GitHub Release ($tagName)..." -ForegroundColor Cyan
+
+    $upload = Invoke-Gh -GhArgs @(
+        "release", "upload", $tagName, $asset.FullName,
+        "--clobber", "--repo", $repo
+    )
+    if ($upload.ExitCode -eq 0) {
+        Write-Host "Instalador publicado na release." -ForegroundColor Green
+        Write-Host "Link fixo (latest): $($Script:LauncherDownloadUrl)" -ForegroundColor Cyan
+        return
+    }
+
+    $title = "PartyLock Launcher v$NewVersion"
+    $create = Invoke-Gh -GhArgs @(
+        "release", "create", $tagName, $asset.FullName,
+        "--title", $title,
+        "--generate-notes",
+        "--repo", $repo
+    )
+    if ($create.ExitCode -eq 0) {
+        Write-Host "Release criada com instalador local." -ForegroundColor Green
+        Write-Host "Link fixo (latest): $($Script:LauncherDownloadUrl)" -ForegroundColor Cyan
+        return
+    }
+
+    Write-Host "Falha ao publicar via gh. Verifique:" -ForegroundColor Yellow
+    Write-Host "  gh release view $tagName --repo $repo" -ForegroundColor DarkGray
 }
 
 function Invoke-RegenerateIcons {
@@ -315,19 +395,20 @@ $installer = $null
 if (-not $SkipBuild) {
     $installer = Invoke-LauncherBuild
 } else {
-    $assetsDir = Join-Path $LauncherRoot "release-assets"
-    $installer = Get-InstallerFile $assetsDir
-    if (-not $installer) {
-        $bundleDir = Join-Path $LauncherRoot "src-tauri\target\release\bundle\nsis"
-        $installer = Get-InstallerFile $bundleDir
-    }
+    $installer = Resolve-Installer $targetVersion
 }
 if ($installer -is [System.Array]) { $installer = $installer[0] }
 
 if ($Tag -or $Push -or $Commit) {
     Invoke-ReleaseGit $targetVersion
-    if ($Push -and $Tag) {
+    if ($GhUpload -and $installer) {
         Invoke-GhReleaseUpload $targetVersion $installer
+    } elseif ($Push -and $Tag) {
+        Write-Host ""
+        Write-Host "CI publica o instalador automaticamente (~10-15 min):" -ForegroundColor Cyan
+        Write-Host "https://github.com/partylock/deadworks/actions" -ForegroundColor Cyan
+        Write-Host "Link fixo (latest): $($Script:LauncherDownloadUrl)" -ForegroundColor Cyan
+        Write-Host "Upload local imediato: adicione -GhUpload (requer gh auth login)" -ForegroundColor DarkGray
     }
 }
 
