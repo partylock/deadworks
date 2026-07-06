@@ -95,12 +95,12 @@ fn ensure_dir(path: &Path) -> Result<(), String> {
         .map_err(|e| format!("Failed to create directory {}: {}", path.display(), e))
 }
 
-fn target_dir_for(kind: &str, game_dir: &Path, filename: &str) -> Result<PathBuf, String> {
+fn target_dir_for(kind: &str, game_dir: &Path, _filename: &str) -> Result<PathBuf, String> {
     let citadel = game_dir.join("citadel");
     match kind {
         "map" => Ok(citadel.join("maps")),
         "addon" => Ok(citadel.join("partylock_addons").join("vpks")),
-        "skin" => Ok(citadel.join("partylock_skins").join("extra").join(filename)),
+        "skin" => Ok(citadel.join("partylock_skins").join("cache")),
         other => Err(format!("Unknown content kind: {}", other)),
     }
 }
@@ -475,23 +475,217 @@ async fn download_and_decompress(
     }
 }
 
-fn skin_version_marker(extra_dir: &Path) -> PathBuf {
-    extra_dir.join(".partylock_version")
+fn skin_mount_dir(game_dir: &Path) -> PathBuf {
+    game_dir
+        .join("citadel")
+        .join("partylock_skins")
+        .join("mount")
 }
 
-fn read_skin_marker_version(extra_dir: &Path) -> Option<u64> {
-    std::fs::read_to_string(skin_version_marker(extra_dir))
-        .ok()
-        .and_then(|raw| raw.trim().parse::<u64>().ok())
+fn skin_addons_dir(game_dir: &Path) -> PathBuf {
+    game_dir.join("citadel").join("addons")
 }
 
-fn write_skin_marker_version(extra_dir: &Path, version: u64) -> Result<(), String> {
-    ensure_dir(extra_dir)?;
-    std::fs::write(skin_version_marker(extra_dir), version.to_string())
-        .map_err(|e| format!("Failed to write skin version marker: {}", e))
+fn active_skin_vpks_path(game_dir: &Path) -> PathBuf {
+    game_dir
+        .join("citadel")
+        .join("partylock_skins")
+        .join("active_vpks.json")
 }
 
-async fn download_and_install_skin(
+/// Deadlock skin VPK slots reserved for PartyLock (pak90–pak99).
+const SKIN_VPK_SLOT_START: u32 = 90;
+const SKIN_VPK_SLOT_END: u32 = 99;
+
+fn clear_partylock_skin_vpks(game_dir: &Path) -> Result<(), String> {
+    let registry = active_skin_vpks_path(game_dir);
+    if registry.exists() {
+        if let Ok(content) = std::fs::read_to_string(&registry) {
+            if let Ok(files) = serde_json::from_str::<Vec<String>>(&content) {
+                let addons = skin_addons_dir(game_dir);
+                for name in files {
+                    let path = addons.join(name);
+                    if path.exists() {
+                        std::fs::remove_file(&path).map_err(|e| {
+                            format!("Failed to remove old skin VPK {}: {}", path.display(), e)
+                        })?;
+                    }
+                }
+            }
+        }
+        let _ = std::fs::remove_file(&registry);
+    }
+    Ok(())
+}
+
+fn collect_vpk_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<(), String> {
+    if !dir.is_dir() {
+        return Ok(());
+    }
+
+    for entry in std::fs::read_dir(dir).map_err(|e| format!("Failed to read {}: {}", dir.display(), e))? {
+        let entry = entry.map_err(|e| format!("Failed to read directory entry: {}", e))?;
+        let path = entry.path();
+        let file_type = entry
+            .file_type()
+            .map_err(|e| format!("Failed to read file type: {}", e))?;
+
+        if file_type.is_dir() {
+            collect_vpk_files(&path, out)?;
+            continue;
+        }
+
+        if path.extension().and_then(|ext| ext.to_str()).map(|ext| ext.eq_ignore_ascii_case("vpk")) == Some(true)
+        {
+            out.push(path);
+        }
+    }
+
+    Ok(())
+}
+
+fn pick_largest_vpk(vpks: &[PathBuf]) -> Option<&PathBuf> {
+    vpks.iter().max_by_key(|path| {
+        std::fs::metadata(path).map(|meta| meta.len()).unwrap_or(0)
+    })
+}
+
+fn copy_dir_merge(src: &Path, dest: &Path) -> Result<(), String> {
+    if !src.is_dir() {
+        return Err(format!("Skin source is not a directory: {}", src.display()));
+    }
+
+    for entry in std::fs::read_dir(src).map_err(|e| format!("Failed to read {}: {}", src.display(), e))? {
+        let entry = entry.map_err(|e| format!("Failed to read directory entry: {}", e))?;
+        let file_type = entry
+            .file_type()
+            .map_err(|e| format!("Failed to read file type: {}", e))?;
+        let dest_path = dest.join(entry.file_name());
+
+        if file_type.is_dir() {
+            ensure_dir(&dest_path)?;
+            copy_dir_merge(&entry.path(), &dest_path)?;
+        } else {
+            if let Some(parent) = dest_path.parent() {
+                ensure_dir(parent)?;
+            }
+            std::fs::copy(entry.path(), &dest_path).map_err(|e| {
+                format!(
+                    "Failed to copy {} -> {}: {}",
+                    entry.path().display(),
+                    dest_path.display(),
+                    e
+                )
+            })?;
+        }
+    }
+
+    Ok(())
+}
+
+fn extract_skin_archive_root(archive_path: &Path, staging_dir: &Path) -> Result<PathBuf, String> {
+    if staging_dir.exists() {
+        std::fs::remove_dir_all(staging_dir)
+            .map_err(|e| format!("Failed to clear skin staging {}: {}", staging_dir.display(), e))?;
+    }
+    ensure_dir(staging_dir)?;
+    extract_skin_7z(archive_path, staging_dir)?;
+
+    let citadel_root = staging_dir.join("citadel");
+    if citadel_root.is_dir() {
+        return Ok(citadel_root);
+    }
+
+    Ok(staging_dir.to_path_buf())
+}
+
+fn rebuild_skin_mount(game_dir: &Path, items: &[ManifestItem]) -> Result<(), String> {
+    clear_partylock_skin_vpks(game_dir)?;
+
+    let mount = skin_mount_dir(game_dir);
+    if mount.exists() {
+        std::fs::remove_dir_all(&mount)
+            .map_err(|e| format!("Failed to clear skin mount {}: {}", mount.display(), e))?;
+    }
+    ensure_dir(&mount)?;
+
+    let addons_dir = skin_addons_dir(game_dir);
+    ensure_dir(&addons_dir)?;
+
+    let staging_parent = mount.join(".staging");
+    if staging_parent.exists() {
+        let _ = std::fs::remove_dir_all(&staging_parent);
+    }
+
+    let mut installed_vpks: Vec<String> = Vec::new();
+    let mut used_loose_mount = false;
+
+    for (idx, item) in items.iter().enumerate() {
+        let cache_7z = skin_cache_archive(game_dir, &item.filename, item.version);
+        if !cache_7z.exists() {
+            return Err(format!(
+                "Missing cached skin archive for {} (expected {})",
+                item.filename,
+                cache_7z.display()
+            ));
+        }
+
+        let staging_dir = staging_parent.join(&item.filename);
+        let content_root = extract_skin_archive_root(&cache_7z, &staging_dir)?;
+
+        let mut vpks = Vec::new();
+        collect_vpk_files(&content_root, &mut vpks)?;
+
+        if let Some(src_vpk) = pick_largest_vpk(&vpks) {
+            let slot = SKIN_VPK_SLOT_START + idx as u32;
+            if slot > SKIN_VPK_SLOT_END {
+                return Err(format!(
+                    "Too many skins in match (max {})",
+                    SKIN_VPK_SLOT_END - SKIN_VPK_SLOT_START + 1
+                ));
+            }
+
+            let dest_name = format!("pak{slot:02}_dir.vpk");
+            let dest_vpk = addons_dir.join(&dest_name);
+            verify_vpk_magic(src_vpk)?;
+            std::fs::copy(src_vpk, &dest_vpk).map_err(|e| {
+                format!(
+                    "Failed to install skin VPK {} -> {}: {}",
+                    src_vpk.display(),
+                    dest_vpk.display(),
+                    e
+                )
+            })?;
+            installed_vpks.push(dest_name);
+        } else {
+            copy_dir_merge(&content_root, &mount)?;
+            used_loose_mount = true;
+        }
+    }
+
+    if !installed_vpks.is_empty() {
+        let registry = active_skin_vpks_path(game_dir);
+        if let Some(parent) = registry.parent() {
+            ensure_dir(parent)?;
+        }
+        let bytes = serde_json::to_vec_pretty(&installed_vpks)
+            .map_err(|e| format!("Failed to serialize active skin VPK list: {}", e))?;
+        std::fs::write(&registry, bytes)
+            .map_err(|e| format!("Failed to write active skin VPK list: {}", e))?;
+    }
+
+    if staging_parent.exists() {
+        let _ = std::fs::remove_dir_all(&staging_parent);
+    }
+
+    if !used_loose_mount && mount.read_dir().map(|mut d| d.next().is_none()).unwrap_or(true) {
+        let _ = std::fs::remove_dir_all(&mount);
+    }
+
+    Ok(())
+}
+
+async fn download_skin_cache(
     url: &str,
     game_dir: &Path,
     filename: &str,
@@ -501,7 +695,6 @@ async fn download_and_install_skin(
     total: usize,
     window: &tauri::Window,
 ) -> Result<(), String> {
-    let extra_dir = target_dir_for("skin", game_dir, filename)?;
     let cache_7z = skin_cache_archive(game_dir, filename, version);
 
     let _ = window.emit(
@@ -516,37 +709,11 @@ async fn download_and_install_skin(
         },
     );
 
-    if !cache_7z.exists() {
-        download_skin_archive(url, &cache_7z, item_name, index, total, window).await?;
+    if cache_7z.exists() {
+        return Ok(());
     }
 
-    if extra_dir.exists() {
-        let _ = std::fs::remove_dir_all(&extra_dir);
-    }
-    ensure_dir(&extra_dir)?;
-
-    let archive_path = cache_7z.clone();
-    let extra_clone = extra_dir.clone();
-    let name = item_name.to_string();
-    let win = window.clone();
-    tokio::task::spawn_blocking(move || extract_skin_7z(&archive_path, &extra_clone))
-        .await
-        .map_err(|e| format!("Extract task failed: {}", e))??;
-
-    write_skin_marker_version(&extra_dir, version)?;
-
-    let _ = win.emit(
-        "download-progress",
-        DownloadProgress {
-            name,
-            status: "ready".into(),
-            bytes_downloaded: 0,
-            total_bytes: 0,
-            item_index: index,
-            total_items: total,
-        },
-    );
-    Ok(())
+    download_skin_archive(url, &cache_7z, item_name, index, total, window).await
 }
 
 // ── Main command ──
@@ -584,16 +751,54 @@ fn read_access_token(app: &tauri::AppHandle) -> Result<String, String> {
         .ok_or_else(|| "Not logged in — open PartyLock launcher and sign in first.".into())
 }
 
+fn clear_installed_match_skins(game_dir: &Path) -> Result<(), String> {
+    clear_partylock_skin_vpks(game_dir)?;
+    let mount = skin_mount_dir(game_dir);
+    if mount.exists() {
+        std::fs::remove_dir_all(&mount)
+            .map_err(|e| format!("Failed to clear skin mount {}: {}", mount.display(), e))?;
+    }
+    Ok(())
+}
+
+fn read_skin_visibility_prefs(app: &tauri::AppHandle) -> (bool, bool) {
+    use tauri_plugin_store::StoreBuilder;
+    let store = StoreBuilder::new(app, "settings.json").build().ok();
+    let hide_own = store
+        .as_ref()
+        .and_then(|s| s.get("hide_own_skin").and_then(|v| v.as_bool()))
+        .unwrap_or(false);
+    let hide_others = store
+        .as_ref()
+        .and_then(|s| s.get("hide_others_skins").and_then(|v| v.as_bool()))
+        .unwrap_or(false);
+    (hide_own, hide_others)
+}
+
 async fn fetch_match_manifest(
     api_url: &str,
     match_id: &str,
     token: &str,
+    hide_own_skin: bool,
+    hide_others_skins: bool,
 ) -> Result<ContentManifest, String> {
-    let url = format!(
+    let mut url = format!(
         "{}/draft/matches/{}/client-content",
         api_url.trim_end_matches('/'),
         match_id
     );
+    let mut params = Vec::new();
+    if hide_own_skin {
+        params.push("hideOwnSkin=true");
+    }
+    if hide_others_skins {
+        params.push("hideOthersSkins=true");
+    }
+    if !params.is_empty() {
+        url.push('?');
+        url.push_str(&params.join("&"));
+    }
+
     let client = reqwest::Client::new();
     let resp = client
         .get(&url)
@@ -613,24 +818,41 @@ async fn install_manifest_items(
     window: &tauri::Window,
     manifest: ContentManifest,
     addr: &str,
+    clear_match_skins_when_empty: bool,
 ) -> Result<crate::connect::ConnectResult, String> {
     for item in &manifest.items {
         validate_filename(&item.filename)?;
     }
 
     let has_addons = manifest.items.iter().any(|i| i.kind == "addon");
-    if has_addons {
+    let has_skins = manifest.items.iter().any(|i| i.kind == "skin");
+    if has_addons || has_skins {
         let game_dir = find_game_dir()?;
-        match crate::gameinfo::has_addonroot(&game_dir) {
-            Ok(true) => {}
-            Ok(false) => {
-                return Err(
-                    "gameinfo.gi is missing the addonroot entry required for client mods. \
-                     Close Deadlock and restart the launcher to apply the patch."
-                        .into(),
-                );
+        if has_addons {
+            match crate::gameinfo::has_addonroot(&game_dir) {
+                Ok(true) => {}
+                Ok(false) => {
+                    return Err(
+                        "gameinfo.gi is missing the addonroot entry required for client mods. \
+                         Close Deadlock and restart the launcher to apply the patch."
+                            .into(),
+                    );
+                }
+                Err(e) => return Err(format!("Failed to check gameinfo.gi: {}", e)),
             }
-            Err(e) => return Err(format!("Failed to check gameinfo.gi: {}", e)),
+        }
+        if has_skins {
+            match crate::gameinfo::has_skin_support(&game_dir) {
+                Ok(true) => {}
+                Ok(false) => {
+                    return Err(
+                        "gameinfo.gi is missing skin search paths (citadel/addons and partylock mount). \
+                         Feche o Deadlock completamente e reinicie o launcher para aplicar o patch."
+                            .into(),
+                    );
+                }
+                Err(e) => return Err(format!("Failed to check gameinfo.gi: {}", e)),
+            }
         }
     }
 
@@ -642,14 +864,13 @@ async fn install_manifest_items(
     let addons_dir = game_dir.join("citadel").join("partylock_addons").join("vpks");
     let maps_dir = game_dir.join("citadel").join("maps");
     let skins_cache_dir = game_dir.join("citadel").join("partylock_skins").join("cache");
-    let skins_extra_dir = game_dir.join("citadel").join("partylock_skins").join("extra");
     ensure_dir(&addons_dir)?;
     ensure_dir(&maps_dir)?;
     ensure_dir(&skins_cache_dir)?;
-    ensure_dir(&skins_extra_dir)?;
 
     let mut state = load_versions(&game_dir);
     let total_items = manifest.items.len();
+    let mut skin_items: Vec<ManifestItem> = Vec::new();
 
     for (idx, item) in manifest.items.iter().enumerate() {
         let display_name = match item.kind.as_str() {
@@ -659,11 +880,9 @@ async fn install_manifest_items(
         };
 
         if item.kind == "skin" {
-            let extra_dir = target_dir_for("skin", &game_dir, &item.filename)?;
+            skin_items.push(item.clone());
             let cache_7z = skin_cache_archive(&game_dir, &item.filename, item.version);
-            let already_current = extra_dir.exists()
-                && cache_7z.exists()
-                && read_skin_marker_version(&extra_dir).unwrap_or(0) == item.version
+            let already_current = cache_7z.exists()
                 && state
                     .managed
                     .get(&item.filename)
@@ -685,7 +904,7 @@ async fn install_manifest_items(
                 continue;
             }
 
-            download_and_install_skin(
+            download_skin_cache(
                 &item.download_url,
                 &game_dir,
                 &item.filename,
@@ -705,6 +924,18 @@ async fn install_manifest_items(
                 },
             );
             save_versions(&game_dir, &state)?;
+
+            let _ = window.emit(
+                "download-progress",
+                DownloadProgress {
+                    name: display_name.clone(),
+                    status: "ready".into(),
+                    bytes_downloaded: item.compressed_size,
+                    total_bytes: item.compressed_size,
+                    item_index: idx,
+                    total_items,
+                },
+            );
             continue;
         }
 
@@ -779,6 +1010,45 @@ async fn install_manifest_items(
         );
     }
 
+    if !skin_items.is_empty() {
+        let _ = window.emit(
+            "download-progress",
+            DownloadProgress {
+                name: "Montando skins".into(),
+                status: "checking".into(),
+                bytes_downloaded: 0,
+                total_bytes: 0,
+                item_index: 0,
+                total_items,
+            },
+        );
+
+        let game_dir_clone = game_dir.clone();
+        let skins = skin_items.clone();
+        tokio::task::spawn_blocking(move || rebuild_skin_mount(&game_dir_clone, &skins))
+            .await
+            .map_err(|e| format!("Skin mount task failed: {}", e))??;
+
+        let _ = window.emit(
+            "download-progress",
+            DownloadProgress {
+                name: "Skins prontas — reinicie o Deadlock se já estiver aberto".into(),
+                status: "ready".into(),
+                bytes_downloaded: 0,
+                total_bytes: 0,
+                item_index: 0,
+                total_items,
+            },
+        );
+    } else if clear_match_skins_when_empty {
+        if let Ok(game_dir) = find_game_dir() {
+            let game_dir_clone = game_dir.clone();
+            tokio::task::spawn_blocking(move || clear_installed_match_skins(&game_dir_clone))
+                .await
+                .map_err(|e| format!("Skin clear task failed: {}", e))??;
+        }
+    }
+
     let _ = window.emit(
         "download-progress",
         serde_json::json!({ "name": "", "status": "connecting", "bytes_downloaded": 0, "total_bytes": 0, "item_index": 0, "total_items": 0 }),
@@ -801,7 +1071,7 @@ pub async fn prepare_and_connect(
     );
 
     let manifest = fetch_manifest(&api_url, &server_id).await?;
-    install_manifest_items(&window, manifest, &addr).await
+    install_manifest_items(&window, manifest, &addr, false).await
 }
 
 #[tauri::command]
@@ -819,8 +1089,17 @@ pub async fn prepare_and_connect_match(
         serde_json::json!({ "name": "", "status": "fetching", "bytes_downloaded": 0, "total_bytes": 0, "item_index": 0, "total_items": 0 }),
     );
 
-    let manifest = fetch_match_manifest(&api_url, &match_id, &token).await?;
-    install_manifest_items(&window, manifest, &addr).await
+    let (hide_own_skin, hide_others_skins) = read_skin_visibility_prefs(app);
+
+    let manifest = fetch_match_manifest(
+        &api_url,
+        &match_id,
+        &token,
+        hide_own_skin,
+        hide_others_skins,
+    )
+    .await?;
+    install_manifest_items(&window, manifest, &addr, true).await
 }
 
 #[cfg(test)]

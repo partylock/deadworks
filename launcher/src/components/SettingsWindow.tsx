@@ -34,7 +34,16 @@ function SettingRow({
 }
 
 export default function SettingsWindow() {
-  const { apiEndpoint, setApiEndpoint, telemetryEnabled, setTelemetryEnabled } = useSettings();
+  const {
+    apiEndpoint,
+    setApiEndpoint,
+    telemetryEnabled,
+    setTelemetryEnabled,
+    hideOwnSkin,
+    setHideOwnSkin,
+    hideOthersSkins,
+    setHideOthersSkins,
+  } = useSettings();
   const [activeSection, setActiveSection] = useState("general");
   const [autostart, setAutostart] = useState(false);
   const [detectedPath, setDetectedPath] = useState<string | null>(null);
@@ -214,6 +223,38 @@ export default function SettingsWindow() {
                     onClick={() => emitTo("main", "check-for-updates")}
                   >
                     Check Now
+                  </button>
+                }
+              />
+
+              <div className={styles.sectionSubtitle}>Skins</div>
+
+              <SettingRow
+                title="Hide skin from my selected character"
+                description="Only yours — when enabled, your equipped skin is not downloaded or loaded in matches."
+                control={
+                  <button
+                    className={cn(styles.toggle, hideOwnSkin && styles.toggleOn)}
+                    onClick={() => setHideOwnSkin(!hideOwnSkin)}
+                    role="switch"
+                    aria-checked={hideOwnSkin}
+                  >
+                    <span className={styles.toggleThumb} />
+                  </button>
+                }
+              />
+
+              <SettingRow
+                title="Hide skins from others"
+                description="When enabled, other players' skins are not downloaded or loaded — you only see default looks on them."
+                control={
+                  <button
+                    className={cn(styles.toggle, hideOthersSkins && styles.toggleOn)}
+                    onClick={() => setHideOthersSkins(!hideOthersSkins)}
+                    role="switch"
+                    aria-checked={hideOthersSkins}
+                  >
+                    <span className={styles.toggleThumb} />
                   </button>
                 }
               />

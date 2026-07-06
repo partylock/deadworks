@@ -21,6 +21,16 @@ fn patch_gameinfo_on_startup() {
         Ok(false) => {}
         Err(e) => println!("[startup] Could not patch gameinfo.gi (game may be running): {}", e),
     }
+    match gameinfo::ensure_addons_game_path(game_dir) {
+        Ok(true) => println!("[startup] Patched gameinfo.gi with citadel/addons path"),
+        Ok(false) => {}
+        Err(e) => println!("[startup] Could not patch addons path in gameinfo.gi: {}", e),
+    }
+    match gameinfo::ensure_skin_search_path(game_dir) {
+        Ok(true) => println!("[startup] Patched gameinfo.gi with skin mount path"),
+        Ok(false) => {}
+        Err(e) => println!("[startup] Could not patch skin path in gameinfo.gi: {}", e),
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

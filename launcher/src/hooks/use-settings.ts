@@ -10,11 +10,26 @@ export interface Settings {
   apiUrl: string;
   telemetryEnabled: boolean;
   setTelemetryEnabled: (enabled: boolean) => void;
+  hideOwnSkin: boolean;
+  setHideOwnSkin: (enabled: boolean) => void;
+  hideOthersSkins: boolean;
+  setHideOthersSkins: (enabled: boolean) => void;
 }
 
 interface SettingsPayload {
   apiEndpoint: string;
   telemetryEnabled: boolean;
+  hideOwnSkin: boolean;
+  hideOthersSkins: boolean;
+}
+
+function toPayload(
+  apiEndpoint: string,
+  telemetryEnabled: boolean,
+  hideOwnSkin: boolean,
+  hideOthersSkins: boolean,
+): SettingsPayload {
+  return { apiEndpoint, telemetryEnabled, hideOwnSkin, hideOthersSkins };
 }
 
 export function useSettings(): Settings {
@@ -22,6 +37,8 @@ export function useSettings(): Settings {
     import.meta.env.DEV ? "local" : "prod",
   );
   const [telemetryEnabled, setTelemetryEnabledState] = useState(true);
+  const [hideOwnSkin, setHideOwnSkinState] = useState(false);
+  const [hideOthersSkins, setHideOthersSkinsState] = useState(false);
 
   useEffect(() => {
     getStore().then(async (store) => {
@@ -31,6 +48,14 @@ export function useSettings(): Settings {
       if (telemetry !== undefined && telemetry !== null) {
         setTelemetryEnabledState(telemetry);
       }
+      const ownSkin = await store.get<boolean>("hide_own_skin");
+      if (ownSkin !== undefined && ownSkin !== null) {
+        setHideOwnSkinState(ownSkin);
+      }
+      const othersSkins = await store.get<boolean>("hide_others_skins");
+      if (othersSkins !== undefined && othersSkins !== null) {
+        setHideOthersSkinsState(othersSkins);
+      }
     });
   }, []);
 
@@ -38,6 +63,8 @@ export function useSettings(): Settings {
     const unlisten = listen<SettingsPayload>("settings-changed", (event) => {
       setApiEndpointState(event.payload.apiEndpoint);
       setTelemetryEnabledState(event.payload.telemetryEnabled);
+      setHideOwnSkinState(event.payload.hideOwnSkin);
+      setHideOthersSkinsState(event.payload.hideOthersSkins);
     });
     return () => { unlisten.then((fn) => fn()); };
   }, []);
@@ -51,16 +78,32 @@ export function useSettings(): Settings {
     const store = await getStore();
     await store.set("api_endpoint", endpoint);
     await store.save();
-    emit({ apiEndpoint: endpoint, telemetryEnabled });
-  }, [emit, telemetryEnabled]);
+    emit(toPayload(endpoint, telemetryEnabled, hideOwnSkin, hideOthersSkins));
+  }, [emit, telemetryEnabled, hideOwnSkin, hideOthersSkins]);
 
   const setTelemetryEnabled = useCallback(async (enabled: boolean) => {
     setTelemetryEnabledState(enabled);
     const store = await getStore();
     await store.set("telemetry_enabled", enabled);
     await store.save();
-    emit({ apiEndpoint, telemetryEnabled: enabled });
-  }, [emit, apiEndpoint]);
+    emit(toPayload(apiEndpoint, enabled, hideOwnSkin, hideOthersSkins));
+  }, [emit, apiEndpoint, hideOwnSkin, hideOthersSkins]);
+
+  const setHideOwnSkin = useCallback(async (enabled: boolean) => {
+    setHideOwnSkinState(enabled);
+    const store = await getStore();
+    await store.set("hide_own_skin", enabled);
+    await store.save();
+    emit(toPayload(apiEndpoint, telemetryEnabled, enabled, hideOthersSkins));
+  }, [emit, apiEndpoint, telemetryEnabled, hideOthersSkins]);
+
+  const setHideOthersSkins = useCallback(async (enabled: boolean) => {
+    setHideOthersSkinsState(enabled);
+    const store = await getStore();
+    await store.set("hide_others_skins", enabled);
+    await store.save();
+    emit(toPayload(apiEndpoint, telemetryEnabled, hideOwnSkin, enabled));
+  }, [emit, apiEndpoint, telemetryEnabled, hideOwnSkin]);
 
   return {
     apiEndpoint,
@@ -68,5 +111,9 @@ export function useSettings(): Settings {
     apiUrl: getApiBaseUrl(apiEndpoint),
     telemetryEnabled,
     setTelemetryEnabled,
+    hideOwnSkin,
+    setHideOwnSkin,
+    hideOthersSkins,
+    setHideOthersSkins,
   };
 }
