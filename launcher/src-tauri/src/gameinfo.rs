@@ -1,6 +1,6 @@
 use std::path::Path;
 
-const ADDONROOT_VALUE: &str = "citadel/deadworks_addons";
+const ADDONROOT_VALUE: &str = "citadel/partylock_addons";
 
 /// Check if an uncommented line contains `addonroot` with our specific value.
 fn has_addonroot_line(content: &str) -> bool {

@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { emitTo } from "@tauri-apps/api/event";
-import { getStore, getApiUrl } from "@/lib/tauri";
+import { getStore } from "@/lib/tauri";
+import { getApiBaseUrl } from "@/lib/config";
 
 export interface Settings {
   apiEndpoint: string;
@@ -17,7 +18,9 @@ interface SettingsPayload {
 }
 
 export function useSettings(): Settings {
-  const [apiEndpoint, setApiEndpointState] = useState("prod");
+  const [apiEndpoint, setApiEndpointState] = useState(
+    import.meta.env.DEV ? "local" : "prod",
+  );
   const [telemetryEnabled, setTelemetryEnabledState] = useState(true);
 
   useEffect(() => {
@@ -62,7 +65,7 @@ export function useSettings(): Settings {
   return {
     apiEndpoint,
     setApiEndpoint,
-    apiUrl: getApiUrl(apiEndpoint),
+    apiUrl: getApiBaseUrl(apiEndpoint),
     telemetryEnabled,
     setTelemetryEnabled,
   };

@@ -1,18 +1,20 @@
 import { useState, useEffect, useRef } from "react";
-import { prepareAndConnect, listenDownloadProgress } from "@/lib/tauri";
-import type { Server } from "@/lib/types";
+import { prepareAndConnectMatch, listenDownloadProgress } from "@/lib/tauri";
+import { resolveMatchConnectAddr } from "@/lib/match-connect";
+import type { MatchReadyPayload } from "@/lib/types";
 import styles from "./ConnectDialog.module.css";
 import { cn } from "@/lib/utils";
 
 interface ConnectDialogProps {
-  server: Server;
+  match: MatchReadyPayload;
   onClose: () => void;
 }
 
-export default function ConnectDialog({ server, onClose }: ConnectDialogProps) {
-  const [status, setStatus] = useState("Initializing...");
+export default function ConnectDialog({ match, onClose }: ConnectDialogProps) {
+  const [status, setStatus] = useState("Inicializando…");
   const [progress, setProgress] = useState<number | null>(null);
   const startedRef = useRef(false);
+  const addr = resolveMatchConnectAddr(match);
 
   useEffect(() => {
     if (startedRef.current) return;
@@ -23,45 +25,50 @@ export default function ConnectDialog({ server, onClose }: ConnectDialogProps) {
     async function run() {
       unlisten = await listenDownloadProgress((p) => {
         if (p.status === "fetching") {
-          setStatus("Checking server content...");
+          setStatus("Verificando mods da partida…");
         } else if (p.status === "checking") {
-          setStatus(`Verifying ${p.name}... (${p.item_index + 1}/${p.total_items})`);
+          setStatus(`Verificando ${p.name}… (${p.item_index + 1}/${p.total_items})`);
           setProgress(null);
         } else if (p.status === "downloading") {
-          const pct = p.total_bytes > 0 ? Math.round((p.bytes_downloaded / p.total_bytes) * 100) : 0;
-          setStatus(`Downloading ${p.name}... ${pct}% (${p.item_index + 1}/${p.total_items})`);
+          const pct =
+            p.total_bytes > 0
+              ? Math.round((p.bytes_downloaded / p.total_bytes) * 100)
+              : 0;
+          setStatus(`Baixando ${p.name}… ${pct}% (${p.item_index + 1}/${p.total_items})`);
           setProgress(pct);
         } else if (p.status === "decompressing") {
-          const pct = p.total_bytes > 0 ? Math.min(100, Math.round((p.bytes_downloaded / p.total_bytes) * 100)) : 0;
-          setStatus(`Decompressing ${p.name}... ${pct}% (${p.item_index + 1}/${p.total_items})`);
+          const pct =
+            p.total_bytes > 0
+              ? Math.min(100, Math.round((p.bytes_downloaded / p.total_bytes) * 100))
+              : 0;
+          setStatus(`Descompactando ${p.name}… ${pct}% (${p.item_index + 1}/${p.total_items})`);
           setProgress(pct);
         } else if (p.status === "ready") {
-          setStatus(`${p.name} verified (${p.item_index + 1}/${p.total_items})`);
+          setStatus(`${p.name} ok (${p.item_index + 1}/${p.total_items})`);
           setProgress(100);
         } else if (p.status === "connecting") {
-          setStatus("All content verified. Connecting...");
+          setStatus("Conectando ao servidor…");
           setProgress(100);
         }
       });
 
       try {
-        setStatus("Checking server content...");
-        const result = await prepareAndConnect(server.id, server.raw_address);
+        setStatus("Verificando mods da partida…");
+        const result = await prepareAndConnectMatch(match.matchId, addr);
         if (result.success) {
           setStatus(result.message);
           setTimeout(onClose, 2000);
         } else {
-          setStatus(`Error: ${result.message}`);
+          setStatus(`Erro: ${result.message}`);
         }
       } catch (e) {
         const msg = typeof e === "string" ? e : String(e);
         if (msg.includes("FILE_IN_USE")) {
           setStatus(
-            "One of this server's files is currently loaded in Deadlock. " +
-              "Please fully disconnect or quit the game, then try joining again."
+            "Um arquivo desta partida está em uso no Deadlock. Feche o jogo e tente novamente.",
           );
         } else {
-          setStatus(`Error: ${msg}`);
+          setStatus(`Erro: ${msg}`);
         }
       }
     }
@@ -71,14 +78,14 @@ export default function ConnectDialog({ server, onClose }: ConnectDialogProps) {
     return () => {
       unlisten?.();
     };
-  }, [server, onClose]);
+  }, [match.matchId, addr, onClose]);
 
   return (
     <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className={styles.box}>
-        <h3 className={styles.title}>Connecting to server...</h3>
-        <p className={styles.serverName}>{server.name}</p>
-        <p className={styles.addr}>{server.address}</p>
+        <h3 className={styles.title}>Conectando à partida</h3>
+        <p className={styles.serverName}>PartyLock Match</p>
+        <p className={styles.addr}>{addr}</p>
 
         <div className={styles.progressTrack}>
           <div
@@ -88,7 +95,9 @@ export default function ConnectDialog({ server, onClose }: ConnectDialogProps) {
         </div>
 
         <p className={styles.status}>{status}</p>
-        <button onClick={onClose} className={styles.cancelBtn}>CANCEL</button>
+        <button onClick={onClose} className={styles.cancelBtn}>
+          CANCELAR
+        </button>
       </div>
     </div>
   );

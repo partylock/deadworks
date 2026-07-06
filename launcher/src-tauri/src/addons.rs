@@ -99,7 +99,7 @@ fn target_dir_for(kind: &str, game_dir: &Path) -> Result<PathBuf, String> {
     let citadel = game_dir.join("citadel");
     match kind {
         "map" => Ok(citadel.join("maps")),
-        "addon" => Ok(citadel.join("deadworks_addons").join("vpks")),
+        "addon" => Ok(citadel.join("partylock_addons").join("vpks")),
         other => Err(format!("Unknown content kind: {}", other)),
     }
 }
@@ -107,7 +107,7 @@ fn target_dir_for(kind: &str, game_dir: &Path) -> Result<PathBuf, String> {
 fn versions_path(game_dir: &Path) -> PathBuf {
     game_dir
         .join("citadel")
-        .join("deadworks_cache")
+        .join("partylock_cache")
         .join("versions.json")
 }
 
@@ -324,28 +324,73 @@ async fn download_and_decompress(
 
 // ── Main command ──
 
-#[tauri::command]
-pub async fn prepare_and_connect(
-    window: tauri::Window,
-    server_id: String,
-    addr: String,
-) -> Result<crate::connect::ConnectResult, String> {
-    let api_url = resolve_api_url(window.app_handle());
+/// Resolve PartyLock API base (`/api/v1`) from persisted settings.
+fn resolve_partylock_api_url(app: &tauri::AppHandle) -> String {
+    use tauri_plugin_store::StoreBuilder;
+    let endpoint = StoreBuilder::new(app, "settings.json")
+        .build()
+        .ok()
+        .and_then(|store| {
+            store
+                .get("api_endpoint")
+                .and_then(|v| v.as_str().map(String::from))
+        })
+        .unwrap_or_else(|| "prod".to_string());
 
-    let _ = window.emit(
-        "download-progress",
-        serde_json::json!({ "name": "", "status": "fetching", "bytes_downloaded": 0, "total_bytes": 0, "item_index": 0, "total_items": 0 }),
+    if cfg!(debug_assertions) && endpoint == "local" {
+        return "http://localhost:3001/api/v1".to_string();
+    }
+
+    std::env::var("PARTYLOCK_API_URL").unwrap_or_else(|_| {
+        "http://localhost:3001/api/v1".to_string()
+    })
+}
+
+fn read_access_token(app: &tauri::AppHandle) -> Result<String, String> {
+    use tauri_plugin_store::StoreBuilder;
+    let store = StoreBuilder::new(app, "settings.json")
+        .build()
+        .map_err(|e| format!("Failed to open settings store: {}", e))?;
+    store
+        .get("access_token")
+        .and_then(|v| v.as_str().map(String::from))
+        .ok_or_else(|| "Not logged in — open PartyLock launcher and sign in first.".into())
+}
+
+async fn fetch_match_manifest(
+    api_url: &str,
+    match_id: &str,
+    token: &str,
+) -> Result<ContentManifest, String> {
+    let url = format!(
+        "{}/draft/matches/{}/client-content",
+        api_url.trim_end_matches('/'),
+        match_id
     );
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", token))
+        .send()
+        .await
+        .map_err(|e| format!("API request failed: {}", e))?;
+    if !resp.status().is_success() {
+        return Err(format!("API returned HTTP {}", resp.status()));
+    }
+    resp.json::<ContentManifest>()
+        .await
+        .map_err(|e| format!("Failed to parse manifest: {}", e))
+}
 
-    let manifest = fetch_manifest(&api_url, &server_id).await?;
-
-    // Validate every item up-front so a bad manifest is rejected before we
-    // touch the filesystem.
+async fn install_manifest_items(
+    window: &tauri::Window,
+    manifest: ContentManifest,
+    addr: &str,
+) -> Result<crate::connect::ConnectResult, String> {
     for item in &manifest.items {
         validate_filename(&item.filename)?;
     }
 
-    // If any addons are listed, verify gameinfo.gi is patched.
     let has_addons = manifest.items.iter().any(|i| i.kind == "addon");
     if has_addons {
         let game_dir = find_game_dir()?;
@@ -353,8 +398,8 @@ pub async fn prepare_and_connect(
             Ok(true) => {}
             Ok(false) => {
                 return Err(
-                    "gameinfo.gi is missing the addonroot entry required for content addons. \
-                     Please close Deadlock and restart the launcher to apply the patch."
+                    "gameinfo.gi is missing the addonroot entry required for client mods. \
+                     Close Deadlock and restart the launcher to apply the patch."
                         .into(),
                 );
             }
@@ -363,11 +408,11 @@ pub async fn prepare_and_connect(
     }
 
     if manifest.items.is_empty() {
-        return crate::connect::connect_to_server_inner(&addr);
+        return crate::connect::connect_to_server_inner(addr);
     }
 
     let game_dir = find_game_dir()?;
-    let addons_dir = game_dir.join("citadel").join("deadworks_addons").join("vpks");
+    let addons_dir = game_dir.join("citadel").join("partylock_addons").join("vpks");
     let maps_dir = game_dir.join("citadel").join("maps");
     ensure_dir(&addons_dir)?;
     ensure_dir(&maps_dir)?;
@@ -386,7 +431,6 @@ pub async fn prepare_and_connect(
             item.filename.clone()
         };
 
-        // Skip if the file already exists and the local version matches.
         let already_current = dest_vpk.exists()
             && state
                 .managed
@@ -428,7 +472,7 @@ pub async fn prepare_and_connect(
             idx,
             total_items,
             item.compressed_size.saturating_mul(3),
-            &window,
+            window,
         )
         .await?;
 
@@ -459,7 +503,43 @@ pub async fn prepare_and_connect(
         serde_json::json!({ "name": "", "status": "connecting", "bytes_downloaded": 0, "total_bytes": 0, "item_index": 0, "total_items": 0 }),
     );
 
-    crate::connect::connect_to_server_inner(&addr)
+    crate::connect::connect_to_server_inner(addr)
+}
+
+#[tauri::command]
+pub async fn prepare_and_connect(
+    window: tauri::Window,
+    server_id: String,
+    addr: String,
+) -> Result<crate::connect::ConnectResult, String> {
+    let api_url = resolve_api_url(window.app_handle());
+
+    let _ = window.emit(
+        "download-progress",
+        serde_json::json!({ "name": "", "status": "fetching", "bytes_downloaded": 0, "total_bytes": 0, "item_index": 0, "total_items": 0 }),
+    );
+
+    let manifest = fetch_manifest(&api_url, &server_id).await?;
+    install_manifest_items(&window, manifest, &addr).await
+}
+
+#[tauri::command]
+pub async fn prepare_and_connect_match(
+    window: tauri::Window,
+    match_id: String,
+    addr: String,
+) -> Result<crate::connect::ConnectResult, String> {
+    let app = window.app_handle();
+    let api_url = resolve_partylock_api_url(app);
+    let token = read_access_token(app)?;
+
+    let _ = window.emit(
+        "download-progress",
+        serde_json::json!({ "name": "", "status": "fetching", "bytes_downloaded": 0, "total_bytes": 0, "item_index": 0, "total_items": 0 }),
+    );
+
+    let manifest = fetch_match_manifest(&api_url, &match_id, &token).await?;
+    install_manifest_items(&window, manifest, &addr).await
 }
 
 #[cfg(test)]

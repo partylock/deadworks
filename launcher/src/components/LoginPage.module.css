@@ -1,0 +1,74 @@
+.page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 18px;
+  gap: 18px;
+}
+
+.brand {
+  text-align: center;
+}
+
+.logo {
+  font-size: 1.4rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.tagline {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+.actions {
+  width: 100%;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.steamBtn {
+  padding: 14px 16px;
+  background: #1b2838;
+  color: #c7d5e0;
+  border: 1px solid #2a475e;
+  border-radius: 4px;
+  font-family: var(--font-family);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.steamBtn:hover:not(:disabled) {
+  background: #2a475e;
+  border-color: #66c0f4;
+  color: #fff;
+}
+
+.steamBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.4;
+}
+
+.error {
+  font-size: 0.75rem;
+  color: #f87171;
+  text-align: center;
+}

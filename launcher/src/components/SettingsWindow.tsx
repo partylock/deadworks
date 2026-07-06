@@ -160,7 +160,7 @@ export default function SettingsWindow() {
 
               <SettingRow
                 title="Launch on Startup"
-                description="Automatically start Deadworks when you log in"
+                description="Start PartyLock launcher when you log in"
                 control={
                   <button
                     className={cn(styles.toggle, autostart && styles.toggleOn)}
@@ -244,15 +244,15 @@ export default function SettingsWindow() {
 
               <SettingRow
                 title="API Endpoint"
-                description="Switch between production and local API for testing"
+                description="PartyLock backend API"
                 control={
                   <select
                     value={apiEndpoint}
                     onChange={(e) => setApiEndpoint(e.target.value)}
                     className={styles.select}
                   >
-                    <option value="prod">Production (api.deadworks.net)</option>
-                    <option value="local">Local (localhost:8787)</option>
+                    <option value="prod">Production</option>
+                    <option value="local">Local (localhost:3001)</option>
                   </select>
                 }
               />

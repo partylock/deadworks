@@ -14,7 +14,46 @@ export interface PlayerInfo {
   level: number;
 }
 
-export type ContentKind = 'map' | 'addon';
+export interface MatchReadyPayload {
+  matchId: string;
+  draftRoomId: string;
+  host: string;
+  port: number;
+  connectCommand: string;
+  localHost?: string;
+  localConnectCommand?: string;
+}
+
+export interface MatchProvisionStep {
+  step: string;
+  label: string;
+  progress?: number;
+  total?: number;
+}
+
+export interface MatchProvisioningPayload {
+  matchId: string;
+  draftRoomId: string;
+  label: string;
+  steps: MatchProvisionStep[];
+}
+
+export interface MatchConnectStatusPayload {
+  matchId: string;
+  draftRoomId: string;
+  connectedCount: number;
+  rosterCount: number;
+  deadlineAt: string;
+  remainingSeconds?: number;
+}
+
+export interface MatchFailedNotification {
+  matchId: string;
+  draftRoomId: string;
+  reason: string;
+}
+
+export type ContentKind = "map" | "addon";
 
 export interface ContentManifestItem {
   filename: string;
