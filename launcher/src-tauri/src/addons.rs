@@ -922,7 +922,7 @@ fn resolve_partylock_api_url(app: &tauri::AppHandle) -> String {
     }
 
     std::env::var("PARTYLOCK_API_URL").unwrap_or_else(|_| {
-        "http://localhost:3001/api/v1".to_string()
+        "https://api.partylock.com.br/api/v1".to_string()
     })
 }
 

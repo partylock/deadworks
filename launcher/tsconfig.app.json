@@ -17,5 +17,12 @@
     "noFallthroughCasesInSwitch": true,
     "paths": { "@/*": ["./src/*"] }
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": [
+    "src/components/ServersPage.tsx",
+    "src/components/ServerInfoWindow.tsx",
+    "src/components/ServerTable.tsx",
+    "src/components/UpdateManager.tsx",
+    "src/hooks/use-servers.ts"
+  ]
 }

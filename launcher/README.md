@@ -1,7 +1,67 @@
-# Tauri + Vanilla TS
+# PartyLock Launcher
 
-This template should help get you started developing with Tauri in vanilla HTML, CSS and Typescript.
+Cliente desktop (Tauri) para login Steam, receber partidas e conectar ao Deadlock.
 
-## Recommended IDE Setup
+## Desenvolvimento
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+```powershell
+$env:Path = "$env:USERPROFILE\.cargo\bin;" + $env:Path
+cd server/deadworks/launcher
+npm install
+npm run tauri dev
+```
+
+## Build para distribuição (Windows)
+
+Requisitos: [Node.js](https://nodejs.org/) 20+, [Rust](https://rustup.rs/), WebView2 (já vem no Windows 10/11).
+
+```powershell
+cd server/deadworks/launcher
+npm run build:installer
+```
+
+Ou, na pasta `launcher`:
+
+```powershell
+.\scripts\build-windows.ps1
+```
+
+Se você já estiver dentro de `launcher\scripts`:
+
+```powershell
+.\build-windows.ps1
+```
+
+O instalador `.exe` (NSIS) sai em:
+
+`src-tauri/target/release/bundle/nsis/PartyLock_<versão>_x64-setup.exe`
+
+Esse arquivo é o que você publica para download.
+
+### API de produção
+
+Release builds apontam para `https://api.partylock.com.br/api/v1` (via `.env.production` e fallback no código). Para outro endpoint no build:
+
+```powershell
+$env:VITE_PARTYLOCK_API_URL = "https://api.partylock.com.br/api/v1"
+npm run build:win
+```
+
+## Release automático (GitHub Actions)
+
+No repositório `deadworks`, crie uma tag:
+
+```bash
+git tag launcher-v0.4.0
+git push origin launcher-v0.4.0
+```
+
+O workflow `.github/workflows/launcher-release.yml` gera o instalador Windows e anexa na GitHub Release.
+
+## Versão
+
+Mantenha alinhados:
+
+- `package.json` → `version`
+- `src-tauri/tauri.conf.json` → `version`
+- `src-tauri/Cargo.toml` → `version`
