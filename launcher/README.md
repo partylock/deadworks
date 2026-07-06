@@ -15,9 +15,32 @@ npm run tauri dev
 
 Requisitos: [Node.js](https://nodejs.org/) 20+, [Rust](https://rustup.rs/), WebView2 (já vem no Windows 10/11).
 
+### Só gerar o `.exe` local (sem GitHub)
+
 ```powershell
 cd server/deadworks/launcher
 npm run build:installer
+```
+
+### Publicar no GitHub (build + commit + tag + push → CI anexa na Release)
+
+```powershell
+cd server/deadworks/launcher
+npm run publish
+```
+
+Isso faz: bump de versão (patch) → build NSIS → commit → tag `launcher-vX.Y.Z` → push. O workflow em `.github/workflows/launcher-release.yml` publica o instalador.
+
+Republicar a **mesma** versão (tag já existe):
+
+```powershell
+.\scripts\release.ps1 -Version 0.1.0 -Tag -Push -Retag -Commit
+```
+
+Upload imediato via `gh` (opcional, após `gh auth login`):
+
+```powershell
+.\scripts\release.ps1 -Bump patch -Tag -Push -Commit -GhUpload
 ```
 
 Ou, na pasta `launcher`:

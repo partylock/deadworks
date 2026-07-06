@@ -231,10 +231,11 @@ function Invoke-GhReleaseUpload([string]$NewVersion, $Installer) {
     }
 
     $title = "PartyLock Launcher v$NewVersion"
+    $notes = "Instalador Windows do PartyLock Launcher (PartyLock-setup-x64.exe).`n`nLink fixo: $($Script:LauncherDownloadUrl)"
     $create = Invoke-Gh -GhArgs @(
         "release", "create", $tagName, $asset.FullName,
         "--title", $title,
-        "--generate-notes",
+        "--notes", $notes,
         "--repo", $repo
     )
     if ($create.ExitCode -eq 0) {

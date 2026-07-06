@@ -32,3 +32,6 @@ if (-not $installer) {
 Write-Host ""
 Write-Host "Instalador pronto:" -ForegroundColor Green
 Write-Host $installer.FullName
+Write-Host ""
+Write-Host "So build local. Para publicar no GitHub (tag + CI):" -ForegroundColor DarkGray
+Write-Host "  npm run publish" -ForegroundColor Cyan

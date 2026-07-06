@@ -18,6 +18,15 @@ pub struct AuthCallbackPayload {
     pub error: Option<String>,
 }
 
+#[derive(serde::Serialize, Clone, Debug)]
+pub struct MatchConnectDeepLink {
+    pub match_id: String,
+    pub host: String,
+    pub port: u16,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub local_host: Option<String>,
+}
+
 pub struct DeepLinkState {
     auth_ready: bool,
     pending_auth: Vec<AuthCallbackPayload>,
@@ -77,6 +86,47 @@ pub fn parse_auth_url(url_str: &str) -> Option<AuthCallbackPayload> {
     })
 }
 
+pub fn parse_match_connect_url(url_str: &str) -> Option<MatchConnectDeepLink> {
+    let url = url::Url::parse(url_str).ok()?;
+    if url.scheme() != "partylock" {
+        return None;
+    }
+    if url.host_str()? != "match" || url.path() != "/connect" {
+        return None;
+    }
+
+    let mut match_id = None;
+    let mut host = None;
+    let mut port = None;
+    let mut local_host = None;
+    for (key, value) in url.query_pairs() {
+        if value.is_empty() {
+            continue;
+        }
+        match key.as_ref() {
+            "matchId" => match_id = Some(value.into_owned()),
+            "host" => host = Some(value.into_owned()),
+            "port" => port = value.parse::<u16>().ok(),
+            "localHost" => local_host = Some(value.into_owned()),
+            _ => {}
+        }
+    }
+
+    let match_id = match_id?;
+    let host = host?;
+    let port = port?;
+    if !is_valid_ip_port(&format!("{host}:{port}")) {
+        return None;
+    }
+
+    Some(MatchConnectDeepLink {
+        match_id,
+        host,
+        port,
+        local_host,
+    })
+}
+
 pub fn dispatch_auth(app: &AppHandle, payload: AuthCallbackPayload) {
     let state = app.state::<DeepLinkStateContainer>();
     let mut s = state.0.lock().unwrap();
@@ -91,6 +141,11 @@ pub fn dispatch_auth(app: &AppHandle, payload: AuthCallbackPayload) {
 pub fn handle_incoming_url(app: &AppHandle, url_str: &str) {
     if let Some(payload) = parse_auth_url(url_str) {
         dispatch_auth(app, payload);
+        surface_main_window(app);
+        return;
+    }
+    if let Some(payload) = parse_match_connect_url(url_str) {
+        let _ = app.emit("match-connect", payload);
         surface_main_window(app);
     }
 }
@@ -136,5 +191,26 @@ mod tests {
     #[test]
     fn ignores_non_partylock_scheme() {
         assert!(parse_auth_url("deadworks://connect/foo").is_none());
+    }
+
+    #[test]
+    fn parses_match_connect() {
+        let payload = parse_match_connect_url(
+            "partylock://match/connect?matchId=abc&host=10.0.0.5&port=27015&localHost=127.0.0.1",
+        )
+        .unwrap();
+        assert_eq!(payload.match_id, "abc");
+        assert_eq!(payload.host, "10.0.0.5");
+        assert_eq!(payload.port, 27015);
+        assert_eq!(payload.local_host.as_deref(), Some("127.0.0.1"));
+    }
+
+    #[test]
+    fn rejects_invalid_match_connect() {
+        assert!(parse_match_connect_url("partylock://auth/callback").is_none());
+        assert!(parse_match_connect_url(
+            "partylock://match/connect?matchId=a&host=bad&port=27015"
+        )
+        .is_none());
     }
 }

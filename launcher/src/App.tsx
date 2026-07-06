@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import Titlebar from "@/components/Titlebar";
 import LoginPage from "@/components/LoginPage";
 import MatchPanel from "@/components/MatchPanel";
@@ -15,12 +16,50 @@ export default function App() {
     useAuth(apiEndpoint);
   const socket = usePlayerSocket(apiEndpoint, accessToken);
   const [connectTarget, setConnectTarget] = useState<MatchReadyPayload | null>(null);
+  const [pendingDeepLinkMatch, setPendingDeepLinkMatch] = useState<MatchReadyPayload | null>(null);
+
+  useEffect(() => {
+    let unlisten: UnlistenFn | null = null;
+
+    (async () => {
+      unlisten = await listen<{
+        match_id: string;
+        host: string;
+        port: number;
+        local_host?: string;
+      }>("match-connect", (event) => {
+        const payload = event.payload;
+        const match: MatchReadyPayload = {
+          matchId: payload.match_id,
+          draftRoomId: "",
+          host: payload.host,
+          port: payload.port,
+          connectCommand: `connect ${payload.host}:${payload.port}`,
+          localHost: payload.local_host,
+          localConnectCommand: payload.local_host
+            ? `connect ${payload.local_host}:${payload.port}`
+            : undefined,
+        };
+        setPendingDeepLinkMatch(match);
+      });
+    })();
+
+    return () => {
+      unlisten?.();
+    };
+  }, []);
 
   useEffect(() => {
     if (!socket.matchReady) {
       setConnectTarget(null);
     }
   }, [socket.matchReady]);
+
+  useEffect(() => {
+    if (!user || !accessToken || !pendingDeepLinkMatch) return;
+    setConnectTarget(pendingDeepLinkMatch);
+    setPendingDeepLinkMatch(null);
+  }, [user, accessToken, pendingDeepLinkMatch]);
 
   return (
     <>

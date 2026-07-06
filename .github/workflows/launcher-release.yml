@@ -51,8 +51,12 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: PartyLock Launcher ${{ github.ref_name }}
+          body: |
+            Instalador Windows do PartyLock Launcher (`PartyLock-setup-x64.exe`).
+
+            Link fixo (latest): https://github.com/partylock/deadworks/releases/latest/download/PartyLock-setup-x64.exe
+          append_body: false
           files: launcher/release-assets/*.exe
-          generate_release_notes: true
           fail_on_unmatched_files: true
 
   build-windows:

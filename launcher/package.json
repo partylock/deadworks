@@ -12,7 +12,8 @@
     "build:installer": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/build-windows.ps1",
     "release": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/release.ps1",
     "release:patch": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/release.ps1 -Bump patch",
-    "release:ci": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/release.ps1 -Bump patch -Tag -Push -Commit"
+    "release:ci": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/release.ps1 -Bump patch -Tag -Push -Commit",
+    "publish": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/release.ps1 -Bump patch -Tag -Push -Commit"
   },
   "dependencies": {
     "@tauri-apps/api": "2.10.1",
