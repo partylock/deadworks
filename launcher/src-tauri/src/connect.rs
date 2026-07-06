@@ -1,4 +1,5 @@
 use std::fs;
+use std::net::{Ipv4Addr, ToSocketAddrs};
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::env;
@@ -207,10 +208,37 @@ fn normalize_connect_addr(addr: &str) -> Result<String, String> {
     Ok(normalized)
 }
 
+/// steam://connect needs a numeric IPv4 — Source 2 does not resolve hostnames there.
+fn resolve_steam_connect_addr(addr: &str) -> Result<String, String> {
+    let normalized = normalize_connect_addr(addr)?;
+    let (host, port_str) = normalized
+        .split_once(':')
+        .ok_or_else(|| format!("invalid server address: {}", addr))?;
+    let port: u16 = port_str
+        .parse()
+        .map_err(|_| format!("invalid server address: {}", addr))?;
+
+    if let Ok(ip) = host.parse::<Ipv4Addr>() {
+        return Ok(format!("{}:{}", ip, port));
+    }
+
+    let endpoint = format!("{}:{}", host, port);
+    for socket_addr in endpoint
+        .to_socket_addrs()
+        .map_err(|e| format!("DNS lookup failed for {}: {}", host, e))?
+    {
+        if let std::net::SocketAddr::V4(v4) = socket_addr {
+            return Ok(format!("{}:{}", v4.ip(), port));
+        }
+    }
+
+    Err(format!("no IPv4 address found for {}", host))
+}
+
 /// Open `steam://connect/<addr>` which tells Steam to launch/join the server.
 pub(crate) fn connect_to_server_inner(addr: &str) -> Result<ConnectResult, String> {
-    let normalized = normalize_connect_addr(addr)?;
-    let steam_url = format!("steam://connect/{}", normalized);
+    let steam_addr = resolve_steam_connect_addr(addr)?;
+    let steam_url = format!("steam://connect/{}", steam_addr);
     open::that(&steam_url).map_err(|e| format!("Failed to open Steam: {}", e))?;
     Ok(ConnectResult {
         success: true,
@@ -259,4 +287,25 @@ pub fn set_game_dir(path: String) -> Result<(), String> {
 #[tauri::command]
 pub fn reset_game_dir() {
     set_game_dir_override(None);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn steam_connect_keeps_ipv4() {
+        assert_eq!(
+            resolve_steam_connect_addr("54.20.78.34:27015").unwrap(),
+            "54.20.78.34:27015"
+        );
+    }
+
+    #[test]
+    fn steam_connect_resolves_localhost() {
+        assert_eq!(
+            resolve_steam_connect_addr("localhost:27015").unwrap(),
+            "127.0.0.1:27015"
+        );
+    }
 }

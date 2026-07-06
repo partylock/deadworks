@@ -1,6 +1,6 @@
 [package]
 name = "deadworks-launcher"
-version = "0.4.2"
+version = "0.4.3"
 description = "PartyLock Launcher"
 authors = ["PartyLock"]
 edition = "2021"
