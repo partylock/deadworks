@@ -12,9 +12,24 @@ pub enum DeepLinkPayload {
     Error(String),
 }
 
+#[derive(serde::Serialize, Clone, Debug)]
+pub struct AuthCallbackPayload {
+    pub access_token: Option<String>,
+    pub error: Option<String>,
+}
+
+#[derive(serde::Serialize, Clone, Debug)]
+pub struct MatchConnectDeepLink {
+    pub match_id: String,
+    pub host: String,
+    pub port: u16,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub local_host: Option<String>,
+}
+
 pub struct DeepLinkState {
-    ready: bool,
-    pending: Vec<DeepLinkPayload>,
+    auth_ready: bool,
+    pending_auth: Vec<AuthCallbackPayload>,
 }
 
 pub struct DeepLinkStateContainer(pub Mutex<DeepLinkState>);
@@ -22,8 +37,8 @@ pub struct DeepLinkStateContainer(pub Mutex<DeepLinkState>);
 impl DeepLinkStateContainer {
     pub fn new() -> Self {
         Self(Mutex::new(DeepLinkState {
-            ready: false,
-            pending: Vec::new(),
+            auth_ready: false,
+            pending_auth: Vec::new(),
         }))
     }
 }
@@ -43,44 +58,95 @@ pub fn is_valid_ip_port(value: &str) -> bool {
     }
 }
 
-pub fn parse_url(url_str: &str) -> DeepLinkPayload {
-    let url = match url::Url::parse(url_str) {
-        Ok(u) => u,
-        Err(_) => return DeepLinkPayload::Error(format!("invalid URL: {}", url_str)),
-    };
-    if url.scheme() != "deadworks" {
-        return DeepLinkPayload::Error(format!("unsupported scheme: {}", url.scheme()));
+pub fn parse_auth_url(url_str: &str) -> Option<AuthCallbackPayload> {
+    let url = url::Url::parse(url_str).ok()?;
+    if url.scheme() != "partylock" {
+        return None;
     }
-    let action = url.host_str().unwrap_or("");
-    let value = url.path().trim_start_matches('/').to_string();
-    match action {
-        "connect" => {
-            if value.is_empty() {
-                DeepLinkPayload::Error("missing server id".into())
-            } else {
-                DeepLinkPayload::Id(value)
-            }
+    if url.host_str()? != "auth" {
+        return None;
+    }
+    if url.path() != "/callback" {
+        return None;
+    }
+
+    let mut access_token = None;
+    let mut error = None;
+    for (key, value) in url.query_pairs() {
+        match key.as_ref() {
+            "access_token" if !value.is_empty() => access_token = Some(value.into_owned()),
+            "error" if !value.is_empty() => error = Some(value.into_owned()),
+            _ => {}
         }
-        "connectip" => {
-            if is_valid_ip_port(&value) {
-                DeepLinkPayload::Ip(value)
-            } else {
-                DeepLinkPayload::Error("malformed address, expected ip:port".into())
-            }
+    }
+
+    Some(AuthCallbackPayload {
+        access_token,
+        error,
+    })
+}
+
+pub fn parse_match_connect_url(url_str: &str) -> Option<MatchConnectDeepLink> {
+    let url = url::Url::parse(url_str).ok()?;
+    if url.scheme() != "partylock" {
+        return None;
+    }
+    if url.host_str()? != "match" || url.path() != "/connect" {
+        return None;
+    }
+
+    let mut match_id = None;
+    let mut host = None;
+    let mut port = None;
+    let mut local_host = None;
+    for (key, value) in url.query_pairs() {
+        if value.is_empty() {
+            continue;
         }
-        other => DeepLinkPayload::Error(format!("unknown action: {}", other)),
+        match key.as_ref() {
+            "matchId" => match_id = Some(value.into_owned()),
+            "host" => host = Some(value.into_owned()),
+            "port" => port = value.parse::<u16>().ok(),
+            "localHost" => local_host = Some(value.into_owned()),
+            _ => {}
+        }
+    }
+
+    let match_id = match_id?;
+    let host = host?;
+    let port = port?;
+    if !is_valid_ip_port(&format!("{host}:{port}")) {
+        return None;
+    }
+
+    Some(MatchConnectDeepLink {
+        match_id,
+        host,
+        port,
+        local_host,
+    })
+}
+
+pub fn dispatch_auth(app: &AppHandle, payload: AuthCallbackPayload) {
+    let state = app.state::<DeepLinkStateContainer>();
+    let mut s = state.0.lock().unwrap();
+    if s.auth_ready {
+        drop(s);
+        let _ = app.emit("auth-callback", payload);
+    } else {
+        s.pending_auth.push(payload);
     }
 }
 
-/// Emit payload to the frontend if it's listening, else buffer until it signals readiness.
-pub fn dispatch(app: &AppHandle, payload: DeepLinkPayload) {
-    let state = app.state::<DeepLinkStateContainer>();
-    let mut s = state.0.lock().unwrap();
-    if s.ready {
-        drop(s);
-        let _ = app.emit("deep-link://connect", payload);
-    } else {
-        s.pending.push(payload);
+pub fn handle_incoming_url(app: &AppHandle, url_str: &str) {
+    if let Some(payload) = parse_auth_url(url_str) {
+        dispatch_auth(app, payload);
+        surface_main_window(app);
+        return;
+    }
+    if let Some(payload) = parse_match_connect_url(url_str) {
+        let _ = app.emit("match-connect", payload);
+        surface_main_window(app);
     }
 }
 
@@ -92,17 +158,15 @@ pub fn surface_main_window(app: &AppHandle) {
     }
 }
 
-/// Frontend calls this once its listener is mounted. Marks ready and replays any
-/// URLs that arrived before the listener existed (cold-start case) via the same
-/// `deep-link://connect` event the listener already subscribes to. Idempotent.
+/// Frontend calls once its auth listener is mounted.
 #[tauri::command]
-pub fn deep_link_ready(state: tauri::State<DeepLinkStateContainer>, app: AppHandle) {
+pub fn auth_callback_ready(state: tauri::State<DeepLinkStateContainer>, app: AppHandle) {
     let mut s = state.0.lock().unwrap();
-    s.ready = true;
-    let pending = std::mem::take(&mut s.pending);
+    s.auth_ready = true;
+    let pending = std::mem::take(&mut s.pending_auth);
     drop(s);
-    for p in pending {
-        let _ = app.emit("deep-link://connect", p);
+    for payload in pending {
+        let _ = app.emit("auth-callback", payload);
     }
 }
 
@@ -111,42 +175,42 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parses_connect_with_id() {
-        match parse_url("deadworks://connect/abc123DEF456") {
-            DeepLinkPayload::Id(v) => assert_eq!(v, "abc123DEF456"),
-            other => panic!("expected Id, got {:?}", other),
-        }
+    fn parses_auth_success() {
+        let payload = parse_auth_url("partylock://auth/callback?access_token=abc123").unwrap();
+        assert_eq!(payload.access_token.as_deref(), Some("abc123"));
+        assert!(payload.error.is_none());
     }
 
     #[test]
-    fn parses_connectip_with_port() {
-        match parse_url("deadworks://connectip/1.2.3.4:27015") {
-            DeepLinkPayload::Ip(v) => assert_eq!(v, "1.2.3.4:27015"),
-            other => panic!("expected Ip, got {:?}", other),
-        }
+    fn parses_auth_error() {
+        let payload = parse_auth_url("partylock://auth/callback?error=vac_ban").unwrap();
+        assert!(payload.access_token.is_none());
+        assert_eq!(payload.error.as_deref(), Some("vac_ban"));
     }
 
     #[test]
-    fn rejects_connectip_without_port() {
-        match parse_url("deadworks://connectip/1.2.3.4") {
-            DeepLinkPayload::Error(_) => {}
-            other => panic!("expected Error, got {:?}", other),
-        }
+    fn ignores_non_partylock_scheme() {
+        assert!(parse_auth_url("deadworks://connect/foo").is_none());
     }
 
     #[test]
-    fn rejects_bad_octet() {
-        match parse_url("deadworks://connectip/999.0.0.1:27015") {
-            DeepLinkPayload::Error(_) => {}
-            other => panic!("expected Error, got {:?}", other),
-        }
+    fn parses_match_connect() {
+        let payload = parse_match_connect_url(
+            "partylock://match/connect?matchId=abc&host=10.0.0.5&port=27015&localHost=127.0.0.1",
+        )
+        .unwrap();
+        assert_eq!(payload.match_id, "abc");
+        assert_eq!(payload.host, "10.0.0.5");
+        assert_eq!(payload.port, 27015);
+        assert_eq!(payload.local_host.as_deref(), Some("127.0.0.1"));
     }
 
     #[test]
-    fn rejects_unknown_action() {
-        match parse_url("deadworks://foo/bar") {
-            DeepLinkPayload::Error(_) => {}
-            other => panic!("expected Error, got {:?}", other),
-        }
+    fn rejects_invalid_match_connect() {
+        assert!(parse_match_connect_url("partylock://auth/callback").is_none());
+        assert!(parse_match_connect_url(
+            "partylock://match/connect?matchId=a&host=bad&port=27015"
+        )
+        .is_none());
     }
 }

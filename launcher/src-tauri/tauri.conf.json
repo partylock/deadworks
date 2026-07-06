@@ -1,23 +1,23 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Deadworks",
-  "version": "0.3.3",
-  "identifier": "net.deadworks.launcher",
+  "productName": "PartyLock",
+  "version": "0.1.0",
+  "identifier": "gg.partylock.launcher",
   "build": {
-    "beforeDevCommand": "bun run dev",
+    "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "bun run build",
+    "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
   "app": {
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "Deadworks",
-        "width": 900,
-        "height": 560,
-        "minWidth": 750,
-        "minHeight": 450,
+        "title": "PartyLock",
+        "width": 400,
+        "height": 480,
+        "minWidth": 360,
+        "minHeight": 420,
         "decorations": false,
         "transparent": false
       }
@@ -27,16 +27,18 @@
         "default-src": "'self' asset:",
         "script-src": "'self'",
         "style-src": "'self' 'unsafe-inline'",
-        "img-src": "'self' asset: http://asset.localhost data:",
+        "img-src": "'self' asset: http://asset.localhost data: https://avatars.steamstatic.com https://avatars.akamai.steamstatic.com https://steamcdn-a.akamaihd.net",
         "font-src": "'self'",
-        "connect-src": "ipc: http://ipc.localhost https://api.deadworks.net"
+        "connect-src": "ipc: http://ipc.localhost http://localhost:3001 ws://localhost:3001 https://api.partylock.com.br wss://api.partylock.com.br"
       }
     }
   },
   "bundle": {
     "active": true,
-    "targets": "all",
-    "createUpdaterArtifacts": true,
+    "targets": ["nsis"],
+    "createUpdaterArtifacts": false,
+    "shortDescription": "Launcher PartyLock para Deadlock",
+    "copyright": "PartyLock",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -45,15 +47,9 @@
     ]
   },
   "plugins": {
-    "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDJERkFDRDYzQUEzNTJBQjUKUldTMUtqV3FZODM2TFJrbzhyTUNtT0ZaS0xVSmxGQ3hEdmttd0s0TlBmY1hsbmNUaVg1c0dpUjIK",
-      "endpoints": [
-        "https://api.deadworks.net/update/{{target}}/{{arch}}/{{current_version}}"
-      ]
-    },
     "deep-link": {
       "desktop": {
-        "schemes": ["deadworks"]
+        "schemes": ["partylock"]
       }
     }
   }

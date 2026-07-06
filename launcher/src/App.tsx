@@ -1,52 +1,101 @@
-import { useEffect } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { useEffect, useState } from "react";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import Titlebar from "@/components/Titlebar";
-import ServersPage from "@/components/ServersPage";
-import UpdateManager from "@/components/UpdateManager";
+import LoginPage from "@/components/LoginPage";
+import MatchPanel from "@/components/MatchPanel";
 import ConnectDialog from "@/components/ConnectDialog";
-import DeepLinkErrorDialog from "@/components/DeepLinkErrorDialog";
 import { useSettings } from "@/hooks/use-settings";
-import { useDeepLink } from "@/hooks/use-deep-link";
-import { getStore } from "@/lib/tauri";
+import { useAuth } from "@/hooks/use-auth";
+import { usePlayerSocket } from "@/hooks/use-player-socket";
+import type { MatchReadyPayload } from "@/lib/types";
 import styles from "./App.module.css";
 
 export default function App() {
-  const settings = useSettings();
-  const { request, clear } = useDeepLink(settings.apiUrl);
+  const { apiEndpoint } = useSettings();
+  const { user, accessToken, isLoading, isSteamPending, startSteamLogin, logout } =
+    useAuth(apiEndpoint);
+  const socket = usePlayerSocket(apiEndpoint, accessToken);
+  const [connectTarget, setConnectTarget] = useState<MatchReadyPayload | null>(null);
+  const [pendingDeepLinkMatch, setPendingDeepLinkMatch] = useState<MatchReadyPayload | null>(null);
 
-  // On first launch, enable autostart by default
   useEffect(() => {
-    getStore().then(async (store) => {
-      const hasBeenSet = await store.get<boolean>("autostart_set");
-      if (!hasBeenSet) {
-        await invoke("plugin:autostart|enable").catch(() => {});
-        await store.set("autostart_set", true);
-        await store.save();
-      }
-    });
+    let unlisten: UnlistenFn | null = null;
+
+    (async () => {
+      unlisten = await listen<{
+        match_id: string;
+        host: string;
+        port: number;
+        local_host?: string;
+      }>("match-connect", (event) => {
+        const payload = event.payload;
+        const match: MatchReadyPayload = {
+          matchId: payload.match_id,
+          draftRoomId: "",
+          host: payload.host,
+          port: payload.port,
+          connectCommand: `connect ${payload.host}:${payload.port}`,
+          localHost: payload.local_host,
+          localConnectCommand: payload.local_host
+            ? `connect ${payload.local_host}:${payload.port}`
+            : undefined,
+        };
+        setPendingDeepLinkMatch(match);
+      });
+    })();
+
+    return () => {
+      unlisten?.();
+    };
   }, []);
+
+  useEffect(() => {
+    if (!socket.matchReady) {
+      setConnectTarget(null);
+    }
+  }, [socket.matchReady]);
+
+  useEffect(() => {
+    if (!user || !accessToken || !pendingDeepLinkMatch) return;
+    setConnectTarget(pendingDeepLinkMatch);
+    setPendingDeepLinkMatch(null);
+  }, [user, accessToken, pendingDeepLinkMatch]);
 
   return (
     <>
       <Titlebar />
       <main className={styles.main}>
-        <ServersPage apiUrl={settings.apiUrl} />
+        {isLoading ? (
+          <div className={styles.loading}>Carregando…</div>
+        ) : !user || !accessToken ? (
+          <LoginPage
+            apiEndpoint={apiEndpoint}
+            isLoading={isLoading}
+            isSteamPending={isSteamPending}
+            onSteamStart={startSteamLogin}
+          />
+        ) : (
+          <MatchPanel
+            user={user}
+            connected={socket.connected}
+            socketError={socket.error}
+            matchProvisioning={socket.matchProvisioning}
+            matchReady={socket.matchReady}
+            matchConnectStatus={socket.matchConnectStatus}
+            matchFailed={socket.matchFailed}
+            onDismissMatchFailed={socket.dismissMatchFailed}
+            onConnect={() => socket.matchReady && setConnectTarget(socket.matchReady)}
+            onLogout={logout}
+          />
+        )}
       </main>
-      {request?.server && (
+      {connectTarget && (
         <ConnectDialog
-          key={request.requestId}
-          server={request.server}
-          onClose={clear}
+          key={connectTarget.matchId}
+          match={connectTarget}
+          onClose={() => setConnectTarget(null)}
         />
       )}
-      {request?.error && (
-        <DeepLinkErrorDialog
-          key={`err-${request.requestId}`}
-          message={request.error}
-          onClose={clear}
-        />
-      )}
-      <UpdateManager />
     </>
   );
 }

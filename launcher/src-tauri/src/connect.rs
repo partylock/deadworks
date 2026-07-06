@@ -189,19 +189,33 @@ pub struct ConnectResult {
     message: String,
 }
 
-/// Open `steam://connect/<addr>` which tells Steam to launch/join the server.
-/// `addr` must be a raw `ip:port` pair; anything else is rejected so the API
-/// (or a deep link) cannot smuggle extra URL segments into Steam's handler.
-pub(crate) fn connect_to_server_inner(addr: &str) -> Result<ConnectResult, String> {
-    if !crate::deep_link::is_valid_ip_port(addr) {
+/// Normalize loopback hostnames before validation.
+fn normalize_connect_addr(addr: &str) -> Result<String, String> {
+    let (host, port) = addr
+        .split_once(':')
+        .ok_or_else(|| format!("invalid server address: {}", addr))?;
+
+    let host = match host.trim().to_lowercase().as_str() {
+        "localhost" | "host.docker.internal" => "127.0.0.1".to_string(),
+        other => other.to_string(),
+    };
+
+    let normalized = format!("{}:{}", host, port.trim());
+    if !crate::deep_link::is_valid_ip_port(&normalized) {
         return Err(format!("invalid server address: {}", addr));
     }
-    let steam_url = format!("steam://connect/{}", addr);
+    Ok(normalized)
+}
+
+/// Open `steam://connect/<addr>` which tells Steam to launch/join the server.
+pub(crate) fn connect_to_server_inner(addr: &str) -> Result<ConnectResult, String> {
+    let normalized = normalize_connect_addr(addr)?;
+    let steam_url = format!("steam://connect/{}", normalized);
     open::that(&steam_url).map_err(|e| format!("Failed to open Steam: {}", e))?;
     Ok(ConnectResult {
         success: true,
         method: "steam_connect".into(),
-        message: format!("Opening steam://connect/{}", addr),
+        message: "Abrindo o Deadlock via Steam…".into(),
     })
 }
 

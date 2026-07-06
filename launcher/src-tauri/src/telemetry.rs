@@ -18,11 +18,11 @@ struct HeartbeatPayload {
     os: String,
 }
 
-fn api_base_url(endpoint: &str) -> &'static str {
-    if cfg!(debug_assertions) && endpoint == "local" {
-        "http://localhost:8787"
+fn api_base_url(endpoint: &str) -> String {
+    if endpoint == "local" {
+        "http://localhost:3001/api/v1".to_string()
     } else {
-        "https://api.deadworks.net"
+        "https://api.partylock.com.br/api/v1".to_string()
     }
 }
 
@@ -55,7 +55,7 @@ pub fn maybe_send_install(app: &AppHandle) {
         .get("api_endpoint")
         .and_then(|v| v.as_str().map(String::from))
         .unwrap_or_else(|| "prod".to_string());
-    let url = format!("{}/v1/install", api_base_url(&endpoint));
+    let url = format!("{}/telemetry/install", api_base_url(&endpoint));
 
     let payload = InstallPayload {
         install_id: id,
@@ -99,7 +99,7 @@ pub fn maybe_send_heartbeat(app: &AppHandle) {
         .get("api_endpoint")
         .and_then(|v| v.as_str().map(String::from))
         .unwrap_or_else(|| "prod".to_string());
-    let url = format!("{}/v1/heartbeat", api_base_url(&endpoint));
+    let url = format!("{}/telemetry/heartbeat", api_base_url(&endpoint));
 
     let payload = HeartbeatPayload {
         install_id: id,

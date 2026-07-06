@@ -1,8 +1,8 @@
 [package]
 name = "deadworks-launcher"
-version = "0.3.3"
-description = "Deadworks Launcher"
-authors = ["Deadworks"]
+version = "0.1.0"
+description = "PartyLock Launcher"
+authors = ["PartyLock"]
 edition = "2021"
 
 [lib]
@@ -29,6 +29,7 @@ reqwest = { version = "0.12", features = ["stream", "json"] }
 tokio = { version = "1", features = ["fs", "io-util"] }
 futures-util = "0.3"
 bzip2 = "0.5"
+sevenz-rust = "0.6"
 uuid = { version = "1", features = ["v4"] }
 
 [target.'cfg(windows)'.dependencies]
