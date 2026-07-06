@@ -19,9 +19,11 @@ export function isLauncherLocalMode(): boolean {
   if (import.meta.env.MODE === "development") return true;
 
   if (typeof window !== "undefined") {
-    const { hostname } = window.location;
-    if (hostname === "localhost" || hostname === "127.0.0.1") return true;
-    if (hostname.endsWith(".localhost")) return true;
+    const { hostname, port } = window.location;
+    // Vite dev server — not tauri.localhost (packaged prod webview).
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return port === "1420";
+    }
   }
 
   return false;
