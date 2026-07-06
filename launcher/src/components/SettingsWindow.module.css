@@ -34,7 +34,7 @@
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 2px;
-  color: var(--text-muted);
+  color: #818cf8;
 }
 
 /* Window controls */
@@ -139,9 +139,10 @@
 
 .navItemActive {
   background: var(--active);
-  color: var(--text);
+  color: #fff;
   font-weight: 600;
   border-left-color: var(--accent);
+  box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.08);
 }
 
 /* Right content area */
@@ -155,6 +156,7 @@
   font-size: 1.2rem;
   font-weight: 700;
   margin-bottom: 4px;
+  color: #fff;
 }
 
 .sectionSubtitle {
@@ -260,7 +262,7 @@
 
 .toggleOn .toggleThumb {
   transform: translateX(18px);
-  background: var(--bg);
+  background: #fff;
 }
 
 /* Game directory path */

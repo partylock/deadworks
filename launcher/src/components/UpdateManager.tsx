@@ -94,7 +94,7 @@ export default function UpdateManager() {
       } catch (err) {
         if (!cancelled) {
           console.error("Update check failed:", err);
-          setError(err instanceof Error ? err.message : "Failed to check for updates");
+          setError(err instanceof Error ? err.message : "Falha ao verificar atualizações");
           setState("error");
         }
       }
@@ -113,7 +113,7 @@ export default function UpdateManager() {
       const fakeUpdate = {
         version: "0.99.0",
         date: new Date().toISOString(),
-        body: "This is a simulated update for testing the update manager UI.\n\n- New feature A\n- Bug fix B\n- Performance improvement C",
+        body: "Atualização simulada para testar a interface.\n\n- Novo recurso A\n- Correção B\n- Melhoria de desempenho C",
         downloadAndInstall: (cb: (event: DownloadEvent) => void) =>
           new Promise<void>((resolve) => {
             const total = 15_000_000;
@@ -171,7 +171,7 @@ export default function UpdateManager() {
       }
     } catch (err) {
       console.error("Update check failed:", err);
-      setError(err instanceof Error ? err.message : "Failed to check for updates");
+      setError(err instanceof Error ? err.message : "Falha ao verificar atualizações");
       setState("error");
     }
   };
@@ -217,7 +217,7 @@ export default function UpdateManager() {
       setState("ready");
     } catch (err) {
       console.error("Update install failed:", err);
-      setError(err instanceof Error ? err.message : "Failed to install update");
+      setError(err instanceof Error ? err.message : "Falha ao instalar atualização");
       setState("error");
     }
   };
@@ -233,7 +233,7 @@ export default function UpdateManager() {
       await relaunch();
     } catch (err) {
       console.error("Relaunch failed:", err);
-      setError(err instanceof Error ? err.message : "Failed to restart");
+      setError(err instanceof Error ? err.message : "Falha ao reiniciar");
     }
   };
 
@@ -249,7 +249,7 @@ export default function UpdateManager() {
         onClick={() => setDismissed(false)}
       >
         {state === "ready" ? <CheckIcon /> : <RefreshIcon />}
-        {state === "ready" ? "Restart to update" : "Update available"}
+        {state === "ready" ? "Reiniciar para atualizar" : "Atualização disponível"}
       </button>
     );
   }
@@ -260,16 +260,16 @@ export default function UpdateManager() {
       <div className={cn(styles.panel, styles.panelError)}>
         <div className={styles.header}>
           <div className={styles.headerInfo}>
-            <div className={cn(styles.title, styles.titleError)}>Update issue</div>
+            <div className={cn(styles.title, styles.titleError)}>Problema na atualização</div>
             <div className={styles.errorMessage}>{error}</div>
           </div>
-          <button className={styles.dismissBtn} onClick={() => { setDismissed(true); setState("idle"); }} aria-label="Dismiss">
+          <button className={styles.dismissBtn} onClick={() => { setDismissed(true); setState("idle"); }} aria-label="Fechar">
             <CloseIcon />
           </button>
         </div>
         <div className={styles.buttons}>
-          <button className={styles.primaryBtn} onClick={handleRetry}>TRY AGAIN</button>
-          <button className={styles.secondaryBtn} onClick={() => { setDismissed(true); setState("idle"); }}>CLOSE</button>
+          <button className={styles.primaryBtn} onClick={handleRetry}>TENTAR NOVAMENTE</button>
+          <button className={styles.secondaryBtn} onClick={() => { setDismissed(true); setState("idle"); }}>FECHAR</button>
         </div>
       </div>
     );
@@ -279,7 +279,7 @@ export default function UpdateManager() {
   if (dismissed || !update) return null;
 
   const releaseDate = update.date
-    ? (() => { const d = new Date(update.date); return isNaN(d.getTime()) ? null : d.toLocaleDateString(); })()
+    ? (() => { const d = new Date(update.date); return isNaN(d.getTime()) ? null : d.toLocaleDateString("pt-BR"); })()
     : null;
 
   return (
@@ -288,14 +288,14 @@ export default function UpdateManager() {
         <div className={styles.headerInfo}>
           <div className={styles.title}>
             <RocketIcon />
-            {state === "ready" ? "Update installed" : "Update available"}
+            {state === "ready" ? "Atualização instalada" : "Atualização disponível"}
           </div>
           <div className={styles.version}>
-            Version {update.version}
-            {releaseDate ? ` \u2022 Released ${releaseDate}` : ""}
+            Versão {update.version}
+            {releaseDate ? ` \u2022 Lançada em ${releaseDate}` : ""}
           </div>
         </div>
-        <button className={styles.dismissBtn} onClick={handleDismiss} aria-label="Dismiss">
+        <button className={styles.dismissBtn} onClick={handleDismiss} aria-label="Fechar">
           <CloseIcon />
         </button>
       </div>
@@ -303,7 +303,7 @@ export default function UpdateManager() {
       {update.body ? (
         <>
           <button className={styles.notesToggle} onClick={() => setShowNotes((v) => !v)}>
-            {showNotes ? "Hide release notes" : "View release notes"}
+            {showNotes ? "Ocultar notas da versão" : "Ver notas da versão"}
           </button>
           {showNotes && (
             <div className={styles.notesContent}>{update.body.trim()}</div>
@@ -317,8 +317,8 @@ export default function UpdateManager() {
             <div className={styles.progressBar} style={{ width: `${progress}%` }} />
           </div>
           <div className={styles.progressText}>
-            Downloading {formatBytes(downloadedBytes)}
-            {totalBytes ? ` of ${formatBytes(totalBytes)}` : ""}...
+            Baixando {formatBytes(downloadedBytes)}
+            {totalBytes ? ` de ${formatBytes(totalBytes)}` : ""}...
           </div>
         </div>
       )}
@@ -327,22 +327,22 @@ export default function UpdateManager() {
         <div className={styles.readySection}>
           <div className={styles.readyMessage}>
             <CheckIcon />
-            Update has been installed.
+            Atualização instalada.
           </div>
           <div className={styles.readyHint}>
-            Restart now to apply, or choose later.
+            Reinicie agora para aplicar, ou escolha depois.
           </div>
           <div className={styles.buttons}>
-            <button className={styles.primaryBtn} onClick={handleRestart}>RESTART NOW</button>
-            <button className={styles.secondaryBtn} onClick={handleDismiss}>LATER</button>
+            <button className={styles.primaryBtn} onClick={handleRestart}>REINICIAR AGORA</button>
+            <button className={styles.secondaryBtn} onClick={handleDismiss}>DEPOIS</button>
           </div>
         </div>
       )}
 
       {state === "available" && (
         <div className={styles.buttons}>
-          <button className={styles.primaryBtn} onClick={handleInstall}>INSTALL & RESTART</button>
-          <button className={styles.secondaryBtn} onClick={handleDismiss}>LATER</button>
+          <button className={styles.primaryBtn} onClick={handleInstall}>INSTALAR E REINICIAR</button>
+          <button className={styles.secondaryBtn} onClick={handleDismiss}>DEPOIS</button>
         </div>
       )}
     </div>

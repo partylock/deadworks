@@ -12,7 +12,7 @@ export default function Titlebar() {
           <button
             onClick={openSettingsWindow}
             className={styles.settingsBtn}
-            aria-label="Settings"
+            aria-label="Configurações"
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="3" />
@@ -21,17 +21,17 @@ export default function Titlebar() {
           </button>
         </div>
         <div className={styles.windowControls}>
-          <button onClick={minimizeWindow} className={styles.winBtn} aria-label="Minimize">
+          <button onClick={minimizeWindow} className={styles.winBtn} aria-label="Minimizar">
             <svg width="10" height="10" viewBox="0 0 10 10" shapeRendering="crispEdges">
               <rect y="4" width="10" height="1" fill="currentColor" />
             </svg>
           </button>
-          <button onClick={toggleMaximize} className={styles.winBtn} aria-label="Maximize">
+          <button onClick={toggleMaximize} className={styles.winBtn} aria-label="Maximizar">
             <svg width="10" height="10" viewBox="0 0 10 10" shapeRendering="crispEdges">
               <path d="M0.5 0.5 H9.5 V9.5 H0.5 Z" fill="none" stroke="currentColor" strokeWidth="1" />
             </svg>
           </button>
-          <button onClick={closeWindow} className={cn(styles.winBtn, styles.winClose)} aria-label="Close">
+          <button onClick={closeWindow} className={cn(styles.winBtn, styles.winClose)} aria-label="Fechar">
             <svg width="10" height="10" viewBox="0 0 10 10">
               <line x1="0.5" y1="0.5" x2="9.5" y2="9.5" stroke="currentColor" strokeWidth="1" strokeLinecap="square" />
               <line x1="9.5" y1="0.5" x2="0.5" y2="9.5" stroke="currentColor" strokeWidth="1" strokeLinecap="square" />

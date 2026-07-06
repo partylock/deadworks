@@ -1,13 +1,48 @@
 import { useState, useEffect, useRef } from "react";
 import { prepareAndConnectMatch, listenDownloadProgress } from "@/lib/tauri";
 import { resolveMatchConnectAddr } from "@/lib/match-connect";
-import type { MatchReadyPayload } from "@/lib/types";
+import type { DownloadProgress, MatchReadyPayload } from "@/lib/types";
 import styles from "./ConnectDialog.module.css";
 import { cn } from "@/lib/utils";
 
 interface ConnectDialogProps {
   match: MatchReadyPayload;
   onClose: () => void;
+}
+
+function overallProgress(p: DownloadProgress): number {
+  const itemPct =
+    p.total_bytes > 0 ? Math.min(100, Math.round((p.bytes_downloaded / p.total_bytes) * 100)) : 0;
+  if (p.total_items <= 0) {
+    return itemPct;
+  }
+  const completed = p.status === "ready" ? p.item_index + 1 : p.item_index;
+  const inItem = p.status === "ready" ? 0 : itemPct / 100;
+  return Math.min(100, Math.round(((completed + inItem) / p.total_items) * 100));
+}
+
+function formatDownloadStatus(p: DownloadProgress): { text: string; progress: number | null } {
+  const overall = overallProgress(p);
+
+  switch (p.status) {
+    case "fetching":
+      return { text: "Preparando conteúdo da partida…", progress: null };
+    case "checking":
+      return { text: "Verificando arquivos…", progress: overall };
+    case "downloading":
+      return {
+        text: p.total_items > 1 ? `Baixando conteúdo… ${overall}%` : `Baixando… ${overall}%`,
+        progress: overall,
+      };
+    case "decompressing":
+      return { text: "Preparando arquivos…", progress: overall };
+    case "ready":
+      return { text: "Preparando conteúdo…", progress: overall };
+    case "connecting":
+      return { text: "Conectando via Steam…", progress: 100 };
+    default:
+      return { text: "Aguarde…", progress: null };
+  }
 }
 
 export default function ConnectDialog({ match, onClose }: ConnectDialogProps) {
@@ -24,39 +59,17 @@ export default function ConnectDialog({ match, onClose }: ConnectDialogProps) {
 
     async function run() {
       unlisten = await listenDownloadProgress((p) => {
-        if (p.status === "fetching") {
-          setStatus("Verificando mods da partida…");
-        } else if (p.status === "checking") {
-          setStatus(`Verificando ${p.name}… (${p.item_index + 1}/${p.total_items})`);
-          setProgress(null);
-        } else if (p.status === "downloading") {
-          const pct =
-            p.total_bytes > 0
-              ? Math.round((p.bytes_downloaded / p.total_bytes) * 100)
-              : 0;
-          setStatus(`Baixando ${p.name}… ${pct}% (${p.item_index + 1}/${p.total_items})`);
-          setProgress(pct);
-        } else if (p.status === "decompressing") {
-          const pct =
-            p.total_bytes > 0
-              ? Math.min(100, Math.round((p.bytes_downloaded / p.total_bytes) * 100))
-              : 0;
-          setStatus(`Descompactando ${p.name}… ${pct}% (${p.item_index + 1}/${p.total_items})`);
-          setProgress(pct);
-        } else if (p.status === "ready") {
-          setStatus(`${p.name} ok (${p.item_index + 1}/${p.total_items})`);
-          setProgress(100);
-        } else if (p.status === "connecting") {
-          setStatus("Conectando ao servidor…");
-          setProgress(100);
-        }
+        const next = formatDownloadStatus(p);
+        setStatus(next.text);
+        setProgress(next.progress);
       });
 
       try {
-        setStatus("Verificando mods da partida…");
+        setStatus("Preparando conteúdo da partida…");
         const result = await prepareAndConnectMatch(match.matchId, addr);
         if (result.success) {
           setStatus(result.message);
+          setProgress(100);
           setTimeout(onClose, 2000);
         } else {
           setStatus(`Erro: ${result.message}`);
@@ -84,8 +97,7 @@ export default function ConnectDialog({ match, onClose }: ConnectDialogProps) {
     <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className={styles.box}>
         <h3 className={styles.title}>Conectando à partida</h3>
-        <p className={styles.serverName}>PartyLock Match</p>
-        <p className={styles.addr}>{addr}</p>
+        <p className={styles.serverName}>PartyLock</p>
 
         <div className={styles.progressTrack}>
           <div

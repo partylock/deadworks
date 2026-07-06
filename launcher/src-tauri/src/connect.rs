@@ -215,7 +215,7 @@ pub(crate) fn connect_to_server_inner(addr: &str) -> Result<ConnectResult, Strin
     Ok(ConnectResult {
         success: true,
         method: "steam_connect".into(),
-        message: format!("Opening steam://connect/{}", normalized),
+        message: "Abrindo o Deadlock via Steam…".into(),
     })
 }
 

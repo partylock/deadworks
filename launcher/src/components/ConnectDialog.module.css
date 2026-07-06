@@ -28,13 +28,6 @@
   font-size: 0.9rem;
   color: var(--accent);
   font-weight: 700;
-  margin-bottom: 4px;
-}
-
-.addr {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  font-family: 'Consolas', 'Courier New', monospace;
   margin-bottom: 20px;
 }
 

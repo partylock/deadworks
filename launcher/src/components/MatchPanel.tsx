@@ -1,5 +1,4 @@
 import { cn } from "@/lib/utils";
-import { resolveMatchConnectAddr } from "@/lib/match-connect";
 import type {
   MatchConnectStatusPayload,
   MatchFailedNotification,
@@ -109,7 +108,7 @@ export default function MatchPanel({
             <p className={styles.subtitle}>{matchProvisioning.label}</p>
           )}
           <p className={styles.subtitle}>
-            Servidor disponível. Clique para baixar mods (se necessário) e conectar.
+            Servidor disponível. Clique para se conectar.
           </p>
           {matchConnectStatus && (
             <p className={styles.connectMeta}>
@@ -119,9 +118,6 @@ export default function MatchPanel({
           <button type="button" className={styles.connectBtn} onClick={onConnect}>
             CONECTAR
           </button>
-          <p className={styles.connectMeta}>
-            {matchReady ? resolveMatchConnectAddr(matchReady) : ""}
-          </p>
         </div>
       )}
     </div>

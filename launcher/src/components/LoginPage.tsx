@@ -33,7 +33,7 @@ export default function LoginPage({
   return (
     <div className={styles.page}>
       <div className={styles.brand}>
-        <div className={styles.logo}>PARTYLOCK</div>
+        <img src="/logo.png" alt="PartyLock" className={styles.logo} />
         <p className={styles.tagline}>Launcher — entre com Steam para receber partidas</p>
       </div>
 
