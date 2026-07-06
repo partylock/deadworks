@@ -33,6 +33,25 @@ $ErrorActionPreference = "Stop"
 $LauncherRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $LauncherRoot
 
+function Invoke-Git {
+    param(
+        [string[]]$GitArgs = @(),
+        [switch]$ReadOutput
+    )
+
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        if ($ReadOutput) {
+            return (& git @GitArgs 2>$null | Out-String).Trim()
+        }
+        & git @GitArgs 2>&1 | Out-Null
+        return $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $prev
+    }
+}
+
 function Get-SemVerParts([string]$Value) {
     if ($Value -match "^(\d+)\.(\d+)\.(\d+)$") {
         return [PSCustomObject]@{
@@ -166,17 +185,20 @@ function Remove-LauncherTag([string]$GitRoot, [string]$TagName) {
 
     Push-Location $GitRoot
     try {
-        git tag -d $TagName 2>$null | Out-Null
-        git push origin ":refs/tags/$TagName" 2>$null | Out-Null
+        Invoke-Git -GitArgs @("tag", "-d", $TagName) | Out-Null
+        $remoteCode = Invoke-Git -GitArgs @("push", "origin", ":refs/tags/$TagName")
+        if ($remoteCode -ne 0) {
+            Write-Host "Tag remota $TagName ausente ou ja removida." -ForegroundColor DarkGray
+        }
     } finally {
         Pop-Location
     }
 }
 
 function Invoke-ReleaseGit([string]$NewVersion) {
-    $gitRoot = (git -C $LauncherRoot rev-parse --show-toplevel 2>$null).Trim()
+    $gitRoot = Invoke-Git -GitArgs @("-C", $LauncherRoot, "rev-parse", "--show-toplevel") -ReadOutput
     if (-not $gitRoot) {
-        throw "Repositório git não encontrado a partir de $LauncherRoot"
+        throw "Repositorio git nao encontrado a partir de $LauncherRoot"
     }
 
     $tagName = "launcher-v$NewVersion"
@@ -192,8 +214,11 @@ function Invoke-ReleaseGit([string]$NewVersion) {
         } else {
             Push-Location $gitRoot
             try {
-                git add @versionFiles
-                git commit -m "chore(launcher): release v$NewVersion"
+                Invoke-Git -Args (@("add") + $versionFiles) | Out-Null
+                $commitCode = Invoke-Git -GitArgs @("commit", "-m", "chore(launcher): release v$NewVersion")
+                if ($commitCode -ne 0) {
+                    Write-Host "Nada para commitar (versao ja commitada?)." -ForegroundColor DarkGray
+                }
             } finally {
                 Pop-Location
             }
@@ -210,7 +235,7 @@ function Invoke-ReleaseGit([string]$NewVersion) {
         } else {
             Push-Location $gitRoot
             try {
-                $tagExists = git rev-parse -q --verify "refs/tags/$tagName" 2>$null
+                $tagExists = Invoke-Git -GitArgs @("rev-parse", "-q", "--verify", "refs/tags/$tagName") -ReadOutput
                 if ($tagExists) {
                     if ($Retag) {
                         Write-Host "Tag $tagName ja existe; recriando (-Retag)..." -ForegroundColor Yellow
@@ -221,7 +246,7 @@ function Invoke-ReleaseGit([string]$NewVersion) {
                 }
 
                 if (-not $tagExists -or $Retag) {
-                    git tag -a $tagName -m "PartyLock Launcher v$NewVersion"
+                    Invoke-Git -GitArgs @("tag", "-a", $tagName, "-m", "PartyLock Launcher v$NewVersion") | Out-Null
                     Write-Host "Tag criada: $tagName" -ForegroundColor Green
                 }
             } finally {
@@ -236,15 +261,17 @@ function Invoke-ReleaseGit([string]$NewVersion) {
         } else {
             Push-Location $gitRoot
             try {
-                git push
+                $branchCode = Invoke-Git -GitArgs @("push")
+                if ($branchCode -ne 0) { throw "git push falhou (exit $branchCode)" }
+
                 if ($Tag) {
                     if ($Retag) {
-                        git push origin $tagName --force
+                        $tagCode = Invoke-Git -GitArgs @("push", "origin", $tagName, "--force")
                     } else {
-                        git push origin $tagName 2>$null
-                        if ($LASTEXITCODE -ne 0) {
-                            Write-Host "Tag remota ja existe; use -Retag para re-disparar o CI." -ForegroundColor Yellow
-                        }
+                        $tagCode = Invoke-Git -GitArgs @("push", "origin", $tagName)
+                    }
+                    if ($tagCode -ne 0) {
+                        Write-Host "Tag remota ja existe; use -Retag para re-disparar o CI." -ForegroundColor Yellow
                     }
                 }
                 Write-Host "Push concluido. CI deve publicar a release em breve." -ForegroundColor Green
