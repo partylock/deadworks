@@ -31,6 +31,9 @@ fn patch_gameinfo_on_startup() {
         Ok(false) => {}
         Err(e) => println!("[startup] Could not patch skin path in gameinfo.gi: {}", e),
     }
+    if let Err(e) = addons::restore_displaced_addon_vpks(game_dir) {
+        println!("[startup] Could not restore displaced addon VPKs: {}", e);
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

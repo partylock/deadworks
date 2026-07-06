@@ -48,6 +48,62 @@ fn find_base_game_citadel_line(lines: &[&str]) -> Option<usize> {
     None
 }
 
+fn find_game_path_line_index(lines: &[&str], value: &str) -> Option<usize> {
+    for (i, line) in lines.iter().enumerate() {
+        let trimmed = line.trim();
+        if !is_commented(trimmed) && trimmed.starts_with("Game") && trimmed.contains(value) {
+            return Some(i);
+        }
+    }
+    None
+}
+
+/// Insert before `citadel/addons` when present, otherwise before base `Game citadel`.
+fn insert_game_path_at_priority(content: &str, value: &str) -> Result<String, String> {
+    let lines: Vec<&str> = content.lines().collect();
+    if has_game_path_line(content, value) {
+        return promote_game_path_before_addons(&lines, content, value);
+    }
+
+    let idx = find_game_path_line_index(&lines, ADDONS_GAME_VALUE)
+        .or_else(|| find_base_game_citadel_line(&lines))
+        .ok_or_else(|| "Could not find SearchPaths anchor in gameinfo.gi".to_string())?;
+    let indent = line_indent(lines.get(idx).unwrap_or(&"\t\tGame\tcitadel"));
+    let newline = if content.contains("\r\n") { "\r\n" } else { "\n" };
+
+    let mut result: Vec<String> = lines.iter().map(|l| l.to_string()).collect();
+    result.insert(idx, format!("{}Game\t{}", indent, value));
+    Ok(result.join(newline))
+}
+
+/// Mount path must precede `citadel/addons` so loose overrides beat third-party VPKs.
+fn promote_game_path_before_addons(
+    lines: &[&str],
+    content: &str,
+    value: &str,
+) -> Result<String, String> {
+    let Some(mount_idx) = find_game_path_line_index(lines, value) else {
+        return Ok(content.to_string());
+    };
+    let Some(addons_idx) = find_game_path_line_index(lines, ADDONS_GAME_VALUE) else {
+        return Ok(content.to_string());
+    };
+    if mount_idx < addons_idx {
+        return Ok(content.to_string());
+    }
+
+    let newline = if content.contains("\r\n") { "\r\n" } else { "\n" };
+    let mut result: Vec<String> = lines.iter().map(|l| l.to_string()).collect();
+    let mount_line = result.remove(mount_idx);
+    let addons_idx = find_game_path_line_index(
+        &result.iter().map(String::as_str).collect::<Vec<_>>(),
+        ADDONS_GAME_VALUE,
+    )
+    .unwrap_or(addons_idx.saturating_sub(1));
+    result.insert(addons_idx, mount_line);
+    Ok(result.join(newline))
+}
+
 fn insert_game_path_before_citadel(content: &str, value: &str) -> Result<String, String> {
     let lines: Vec<&str> = content.lines().collect();
     if has_game_path_line(content, value) {
@@ -173,14 +229,13 @@ pub fn ensure_addons_game_path(game_dir: &Path) -> Result<bool, String> {
     Ok(true)
 }
 
-/// Ensure `Game citadel/partylock_skins/mount` is listed before the base `Game citadel` entry.
+/// Ensure `Game citadel/partylock_skins/mount` precedes `citadel/addons` and base citadel.
 pub fn ensure_skin_search_path(game_dir: &Path) -> Result<bool, String> {
     let (gi_path, content) = read_gameinfo(game_dir)?;
-    if has_game_path_line(&content, SKIN_GAME_VALUE) {
+    let new_content = insert_game_path_at_priority(&content, SKIN_GAME_VALUE)?;
+    if new_content == content {
         return Ok(false);
     }
-
-    let new_content = insert_game_path_before_citadel(&content, SKIN_GAME_VALUE)?;
     std::fs::write(&gi_path, &new_content)
         .map_err(|e| format!("Failed to write gameinfo.gi: {}", e))?;
     Ok(true)
@@ -206,11 +261,12 @@ SearchPaths
     }
 
     #[test]
-    fn inserts_addons_path_before_base_citadel() {
-        let sample = "SearchPaths\n{\n\tGame\tcitadel\n}";
-        let patched = insert_game_path_before_citadel(sample, ADDONS_GAME_VALUE).unwrap();
+    fn promotes_mount_before_addons() {
+        let sample = "SearchPaths\n{\n\tGame\tcitadel/addons\n\tGame\tcitadel/partylock_skins/mount\n\tGame\tcitadel\n}";
+        let lines: Vec<&str> = sample.lines().collect();
+        let patched = promote_game_path_before_addons(&lines, sample, SKIN_GAME_VALUE).unwrap();
+        let mount_pos = patched.find(SKIN_GAME_VALUE).unwrap();
         let addons_pos = patched.find(ADDONS_GAME_VALUE).unwrap();
-        let citadel_pos = patched.rfind("\tcitadel\n").unwrap();
-        assert!(addons_pos < citadel_pos);
+        assert!(mount_pos < addons_pos);
     }
 }

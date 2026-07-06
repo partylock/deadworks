@@ -493,9 +493,189 @@ fn active_skin_vpks_path(game_dir: &Path) -> PathBuf {
         .join("active_vpks.json")
 }
 
-/// Deadlock skin VPK slots reserved for PartyLock (pak90–pak99).
-const SKIN_VPK_SLOT_START: u32 = 90;
-const SKIN_VPK_SLOT_END: u32 = 99;
+fn displaced_addon_vpks_path(game_dir: &Path) -> PathBuf {
+    game_dir
+        .join("citadel")
+        .join("partylock_skins")
+        .join("displaced_vpks.json")
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct DisplacedAddonVpk {
+    original: String,
+    displaced: String,
+}
+
+/// ponytail: pak01–pak12 = PartyLock match slots; user addons get bumped to 13+ temporarily.
+const SKIN_VPK_SLOT_START: u32 = 1;
+const SKIN_VPK_SLOT_END: u32 = 12;
+const DISPLACED_VPK_SLOT_START: u32 = 13;
+const MAX_PAK_SLOT: u32 = 99;
+
+fn pak_dir_vpk_name(slot: u32) -> String {
+    format!("pak{slot:02}_dir.vpk")
+}
+
+fn parse_pak_dir_slot(filename: &str) -> Option<u32> {
+    let lower = filename.to_lowercase();
+    let num = lower.strip_prefix("pak")?.strip_suffix("_dir.vpk")?;
+    if num.len() != 2 {
+        return None;
+    }
+    num.parse().ok()
+}
+
+fn occupied_pak_slots(addons_dir: &Path) -> Result<std::collections::HashSet<u32>, String> {
+    let mut occupied = std::collections::HashSet::new();
+    if !addons_dir.is_dir() {
+        return Ok(occupied);
+    }
+
+    for entry in std::fs::read_dir(addons_dir)
+        .map_err(|e| format!("Failed to read {}: {}", addons_dir.display(), e))?
+    {
+        let entry = entry.map_err(|e| format!("Failed to read directory entry: {}", e))?;
+        if !entry.file_type().map_err(|e| format!("Failed to read file type: {}", e))?.is_file() {
+            continue;
+        }
+        let name = entry.file_name().to_string_lossy().to_string();
+        if let Some(slot) = parse_pak_dir_slot(&name) {
+            occupied.insert(slot);
+        }
+    }
+
+    Ok(occupied)
+}
+
+fn next_free_pak_slot(
+    occupied: &std::collections::HashSet<u32>,
+    from: u32,
+) -> Option<u32> {
+    (from..=MAX_PAK_SLOT).find(|slot| !occupied.contains(slot))
+}
+
+fn load_displaced_addon_vpks(game_dir: &Path) -> Result<Vec<DisplacedAddonVpk>, String> {
+    let path = displaced_addon_vpks_path(game_dir);
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+    let content = std::fs::read_to_string(&path)
+        .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
+    serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse displaced VPK registry: {}", e))
+}
+
+fn save_displaced_addon_vpks(game_dir: &Path, entries: &[DisplacedAddonVpk]) -> Result<(), String> {
+    let path = displaced_addon_vpks_path(game_dir);
+    if entries.is_empty() {
+        if path.exists() {
+            std::fs::remove_file(&path)
+                .map_err(|e| format!("Failed to remove {}: {}", path.display(), e))?;
+        }
+        return Ok(());
+    }
+    if let Some(parent) = path.parent() {
+        ensure_dir(parent)?;
+    }
+    let bytes = serde_json::to_vec_pretty(entries)
+        .map_err(|e| format!("Failed to serialize displaced VPK registry: {}", e))?;
+    std::fs::write(&path, bytes)
+        .map_err(|e| format!("Failed to write {}: {}", path.display(), e))
+}
+
+/// Move user addon VPKs from pak01–12 into the first free slots from pak13 upward.
+fn displace_competing_addon_vpks(game_dir: &Path) -> Result<(), String> {
+    if !load_displaced_addon_vpks(game_dir)?.is_empty() {
+        return Ok(());
+    }
+
+    let addons_dir = skin_addons_dir(game_dir);
+    if !addons_dir.is_dir() {
+        return Ok(());
+    }
+
+    let mut occupied = occupied_pak_slots(&addons_dir)?;
+    let mut displaced = Vec::new();
+
+    for slot in SKIN_VPK_SLOT_START..=SKIN_VPK_SLOT_END {
+        let original = pak_dir_vpk_name(slot);
+        let original_path = addons_dir.join(&original);
+        if !original_path.is_file() {
+            continue;
+        }
+
+        let target_slot = next_free_pak_slot(&occupied, DISPLACED_VPK_SLOT_START).ok_or_else(|| {
+            format!(
+                "No free addon slot between pak{:02} and pak{:02} to park existing mods",
+                DISPLACED_VPK_SLOT_START, MAX_PAK_SLOT
+            )
+        })?;
+        let displaced_name = pak_dir_vpk_name(target_slot);
+        let displaced_path = addons_dir.join(&displaced_name);
+
+        std::fs::rename(&original_path, &displaced_path).map_err(|e| {
+            format!(
+                "Failed to move {} -> {}: {}",
+                original_path.display(),
+                displaced_path.display(),
+                e
+            )
+        })?;
+
+        occupied.insert(target_slot);
+        displaced.push(DisplacedAddonVpk {
+            original,
+            displaced: displaced_name,
+        });
+    }
+
+    save_displaced_addon_vpks(game_dir, &displaced)
+}
+
+/// Restore addon VPKs parked in pak13+ back to their original pak01–12 names.
+pub(crate) fn restore_displaced_addon_vpks(game_dir: &Path) -> Result<(), String> {
+    let entries = load_displaced_addon_vpks(game_dir)?;
+    if entries.is_empty() {
+        return Ok(());
+    }
+
+    let addons_dir = skin_addons_dir(game_dir);
+    let mut remaining = Vec::new();
+
+    for entry in entries {
+        let from = addons_dir.join(&entry.displaced);
+        let to = addons_dir.join(&entry.original);
+
+        if !from.is_file() {
+            if to.is_file() {
+                continue;
+            }
+            remaining.push(entry);
+            continue;
+        }
+
+        if to.exists() {
+            remaining.push(entry);
+            continue;
+        }
+
+        std::fs::rename(&from, &to).map_err(|e| {
+            format!(
+                "Failed to restore {} -> {}: {}",
+                from.display(),
+                to.display(),
+                e
+            )
+        })?;
+    }
+
+    save_displaced_addon_vpks(game_dir, &remaining)
+}
+
+fn prepare_partylock_vpk_slots(game_dir: &Path) -> Result<(), String> {
+    restore_displaced_addon_vpks(game_dir)?;
+    displace_competing_addon_vpks(game_dir)
+}
 
 fn clear_partylock_skin_vpks(game_dir: &Path) -> Result<(), String> {
     let registry = active_skin_vpks_path(game_dir);
@@ -619,6 +799,7 @@ fn rebuild_skin_mount(game_dir: &Path, items: &[ManifestItem]) -> Result<(), Str
 
     let mut installed_vpks: Vec<String> = Vec::new();
     let mut used_loose_mount = false;
+    let mut slots_prepared = false;
 
     for (idx, item) in items.iter().enumerate() {
         let cache_7z = skin_cache_archive(game_dir, &item.filename, item.version);
@@ -637,6 +818,11 @@ fn rebuild_skin_mount(game_dir: &Path, items: &[ManifestItem]) -> Result<(), Str
         collect_vpk_files(&content_root, &mut vpks)?;
 
         if let Some(src_vpk) = pick_largest_vpk(&vpks) {
+            if !slots_prepared {
+                prepare_partylock_vpk_slots(game_dir)?;
+                slots_prepared = true;
+            }
+
             let slot = SKIN_VPK_SLOT_START + idx as u32;
             if slot > SKIN_VPK_SLOT_END {
                 return Err(format!(
@@ -753,6 +939,7 @@ fn read_access_token(app: &tauri::AppHandle) -> Result<String, String> {
 
 fn clear_installed_match_skins(game_dir: &Path) -> Result<(), String> {
     clear_partylock_skin_vpks(game_dir)?;
+    restore_displaced_addon_vpks(game_dir)?;
     let mount = skin_mount_dir(game_dir);
     if mount.exists() {
         std::fs::remove_dir_all(&mount)
@@ -1132,4 +1319,11 @@ mod tests {
         assert!(validate_filename("addon-1.2.3").is_ok());
     }
 
+    #[test]
+    fn parses_pak_dir_slots() {
+        assert_eq!(parse_pak_dir_slot("pak01_dir.vpk"), Some(1));
+        assert_eq!(parse_pak_dir_slot("PAK12_DIR.VPK"), Some(12));
+        assert_eq!(parse_pak_dir_slot("pak1_dir.vpk"), None);
+        assert_eq!(parse_pak_dir_slot("other.vpk"), None);
+    }
 }
