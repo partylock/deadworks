@@ -43,19 +43,37 @@ impl DeepLinkStateContainer {
     }
 }
 
-pub fn is_valid_ip_port(value: &str) -> bool {
-    let (ip, port) = match value.split_once(':') {
+fn is_valid_ipv4(host: &str) -> bool {
+    let octets: Vec<&str> = host.split('.').collect();
+    octets.len() == 4 && octets.iter().all(|o| o.parse::<u8>().is_ok())
+}
+
+fn is_valid_hostname(host: &str) -> bool {
+    if host.is_empty() || host.len() > 253 {
+        return false;
+    }
+    if host.starts_with('.') || host.ends_with('.') {
+        return false;
+    }
+    host.split('.').all(|label| {
+        if label.is_empty() || label.len() > 63 {
+            return false;
+        }
+        let bytes = label.as_bytes();
+        if !bytes[0].is_ascii_alphanumeric() || !bytes[bytes.len() - 1].is_ascii_alphanumeric() {
+            return false;
+        }
+        label.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
+    })
+}
+
+pub fn is_valid_connect_addr(value: &str) -> bool {
+    let (host, port) = match value.split_once(':') {
         Some(p) => p,
         None => return false,
     };
-    let octets: Vec<&str> = ip.split('.').collect();
-    if octets.len() != 4 || octets.iter().any(|o| o.parse::<u8>().is_err()) {
-        return false;
-    }
-    match port.parse::<u16>() {
-        Ok(p) => p > 0,
-        Err(_) => false,
-    }
+    let port_ok = matches!(port.parse::<u16>(), Ok(p) if p > 0);
+    port_ok && (is_valid_ipv4(host) || is_valid_hostname(host))
 }
 
 pub fn parse_auth_url(url_str: &str) -> Option<AuthCallbackPayload> {
@@ -115,7 +133,7 @@ pub fn parse_match_connect_url(url_str: &str) -> Option<MatchConnectDeepLink> {
     let match_id = match_id?;
     let host = host?;
     let port = port?;
-    if !is_valid_ip_port(&format!("{host}:{port}")) {
+    if !is_valid_connect_addr(&format!("{host}:{port}")) {
         return None;
     }
 
@@ -217,11 +235,32 @@ mod tests {
     }
 
     #[test]
+    fn parses_match_connect_dns_host() {
+        let payload = parse_match_connect_url(
+            "partylock://match/connect?matchId=abc&host=m-550e8400e29b.jogar.partylock.com.br&port=27015",
+        )
+        .unwrap();
+        assert_eq!(payload.host, "m-550e8400e29b.jogar.partylock.com.br");
+        assert_eq!(payload.port, 27015);
+    }
+
+    #[test]
     fn rejects_invalid_match_connect() {
         assert!(parse_match_connect_url("partylock://auth/callback").is_none());
         assert!(parse_match_connect_url(
-            "partylock://match/connect?matchId=a&host=bad&port=27015"
+            "partylock://match/connect?matchId=a&host=-invalid&port=27015"
         )
         .is_none());
+    }
+
+    #[test]
+    fn validates_connect_addrs() {
+        assert!(is_valid_connect_addr("10.0.0.5:27015"));
+        assert!(is_valid_connect_addr(
+            "m-550e8400e29b.jogar.partylock.com.br:27015"
+        ));
+        assert!(!is_valid_connect_addr("-invalid:27015"));
+        assert!(!is_valid_connect_addr("foo..bar:27015"));
+        assert!(!is_valid_connect_addr("10.0.0.5:0"));
     }
 }

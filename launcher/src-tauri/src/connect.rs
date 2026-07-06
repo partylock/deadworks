@@ -201,7 +201,7 @@ fn normalize_connect_addr(addr: &str) -> Result<String, String> {
     };
 
     let normalized = format!("{}:{}", host, port.trim());
-    if !crate::deep_link::is_valid_ip_port(&normalized) {
+    if !crate::deep_link::is_valid_connect_addr(&normalized) {
         return Err(format!("invalid server address: {}", addr));
     }
     Ok(normalized)
