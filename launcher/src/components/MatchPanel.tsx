@@ -8,6 +8,13 @@ import type {
 import type { AuthUser } from "@/lib/api";
 import styles from "./MatchPanel.module.css";
 
+function userInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0] ?? ""}${parts[parts.length - 1][0] ?? ""}`.toUpperCase();
+}
+
 interface MatchPanelProps {
   user: AuthUser;
   connected: boolean;
@@ -48,10 +55,21 @@ export default function MatchPanel({
       <div className={styles.header}>
         <div className={styles.userBlock}>
           <span className={styles.greeting}>Conectado como</span>
-          <span className={styles.userName}>{user.name}</span>
-          <div className={styles.statusRow}>
-            <span className={cn(styles.dot, connected && styles.dotOnline)} />
-            {statusLabel}
+          <div className={styles.userRow}>
+            <div className={styles.avatar} aria-hidden>
+              {user.avatarUrl ? (
+                <img src={user.avatarUrl} alt="" className={styles.avatarImg} />
+              ) : (
+                <span className={styles.avatarFallback}>{userInitials(user.name)}</span>
+              )}
+            </div>
+            <div className={styles.userInfo}>
+              <span className={styles.userName}>{user.name}</span>
+              <div className={styles.statusRow}>
+                <span className={cn(styles.dot, connected && styles.dotOnline)} />
+                {statusLabel}
+              </div>
+            </div>
           </div>
         </div>
         <button type="button" className={styles.logoutBtn} onClick={onLogout}>
