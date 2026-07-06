@@ -3,6 +3,7 @@ mod connect;
 mod deep_link;
 mod gameinfo;
 mod ping;
+mod telemetry;
 
 fn patch_gameinfo_on_startup() {
     let game_dir_buf;
@@ -95,6 +96,10 @@ pub fn run() {
                 }
             }
             patch_gameinfo_on_startup();
+
+            let telemetry_handle = app.handle().clone();
+            telemetry::maybe_send_install(&telemetry_handle);
+            telemetry::maybe_send_heartbeat(&telemetry_handle);
 
             let show = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
             let launch = MenuItem::with_id(app, "launch", "Launch Deadlock", true, None::<&str>)?;
