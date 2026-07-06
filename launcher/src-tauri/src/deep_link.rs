@@ -132,8 +132,17 @@ pub fn dispatch_auth(app: &AppHandle, payload: AuthCallbackPayload) {
     let mut s = state.0.lock().unwrap();
     if s.auth_ready {
         drop(s);
+        println!(
+            "[steam-auth] emitting auth-callback (token={}, error={})",
+            payload.access_token.is_some(),
+            payload.error.as_deref().unwrap_or("-")
+        );
         let _ = app.emit("auth-callback", payload);
     } else {
+        println!(
+            "[steam-auth] auth listener not ready — queued callback (pending={})",
+            s.pending_auth.len() + 1
+        );
         s.pending_auth.push(payload);
     }
 }
@@ -164,7 +173,9 @@ pub fn auth_callback_ready(state: tauri::State<DeepLinkStateContainer>, app: App
     let mut s = state.0.lock().unwrap();
     s.auth_ready = true;
     let pending = std::mem::take(&mut s.pending_auth);
+    let pending_count = pending.len();
     drop(s);
+    println!("[steam-auth] frontend auth listener ready (flushing {pending_count} queued)");
     for payload in pending {
         let _ = app.emit("auth-callback", payload);
     }

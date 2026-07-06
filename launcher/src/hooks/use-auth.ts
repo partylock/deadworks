@@ -1,12 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
-import { fetchProfile, steamAuthErrorMessage } from "@/lib/api";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { fetchProfile, getSteamLauncherAuthUrl, steamAuthErrorMessage } from "@/lib/api";
+import { resolveApiEndpoint } from "@/lib/config";
 import { getStore } from "@/lib/tauri";
 import type { AuthUser } from "@/lib/api";
 
 const TOKEN_KEY = "access_token";
 const USER_KEY = "user";
+const STEAM_PENDING_TIMEOUT_MS = 3 * 60 * 1000;
 
 interface AuthCallbackPayload {
   access_token?: string;
@@ -18,8 +21,17 @@ export interface AuthState {
   accessToken: string | null;
   isLoading: boolean;
   isSteamPending: boolean;
-  startSteamLogin: () => void;
+  beginSteamLogin: (apiEndpoint: string) => Promise<void>;
+  cancelSteamLogin: () => void;
   logout: () => Promise<void>;
+}
+
+function steamCompleteErrorMessage(err: unknown): string {
+  if (err instanceof Error && err.message.startsWith("profile_http_")) {
+    const status = err.message.slice("profile_http_".length);
+    return `Falha ao concluir login via Steam (API respondeu ${status}).`;
+  }
+  return "Falha ao concluir login via Steam.";
 }
 
 export function useAuth(apiEndpoint: string): AuthState {
@@ -27,6 +39,7 @@ export function useAuth(apiEndpoint: string): AuthState {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSteamPending, setIsSteamPending] = useState(false);
+  const steamApiEndpointRef = useRef(apiEndpoint);
 
   const persistSession = useCallback(async (token: string, profile: AuthUser) => {
     const store = await getStore();
@@ -39,11 +52,15 @@ export function useAuth(apiEndpoint: string): AuthState {
 
   const completeSteamAuth = useCallback(
     async (token: string) => {
-      const profile = await fetchProfile(apiEndpoint, token);
+      const profile = await fetchProfile(
+        resolveApiEndpoint(steamApiEndpointRef.current),
+        token,
+      );
       await persistSession(token, profile);
       setIsSteamPending(false);
+      await invoke("stop_steam_auth_listener");
     },
-    [apiEndpoint, persistSession],
+    [persistSession],
   );
 
   useEffect(() => {
@@ -55,7 +72,7 @@ export function useAuth(apiEndpoint: string): AuthState {
         setAccessToken(token);
         if (savedUser) setUser(savedUser);
         try {
-          const profile = await fetchProfile(apiEndpoint, token);
+          const profile = await fetchProfile(resolveApiEndpoint(apiEndpoint), token);
           await persistSession(token, profile);
         } catch {
           await store.delete(TOKEN_KEY);
@@ -76,15 +93,18 @@ export function useAuth(apiEndpoint: string): AuthState {
         const payload = event.payload;
         if (payload.error) {
           setIsSteamPending(false);
+          void invoke("stop_steam_auth_listener");
           window.alert(steamAuthErrorMessage(payload.error));
           return;
         }
         if (payload.access_token) {
-          completeSteamAuth(payload.access_token).catch(() => {
+          completeSteamAuth(payload.access_token).catch((err) => {
             setIsSteamPending(false);
-            window.alert("Falha ao concluir login via Steam.");
+            window.alert(steamCompleteErrorMessage(err));
           });
+          return;
         }
+        setIsSteamPending(false);
       });
 
       await invoke("auth_callback_ready");
@@ -97,6 +117,16 @@ export function useAuth(apiEndpoint: string): AuthState {
     };
   }, [completeSteamAuth]);
 
+  useEffect(() => {
+    if (!isSteamPending) return;
+    const timer = window.setTimeout(() => {
+      setIsSteamPending(false);
+      void invoke("stop_steam_auth_listener");
+      window.alert("Tempo esgotado aguardando o Steam.");
+    }, STEAM_PENDING_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+  }, [isSteamPending]);
+
   const logout = useCallback(async () => {
     const store = await getStore();
     await store.delete(TOKEN_KEY);
@@ -105,16 +135,37 @@ export function useAuth(apiEndpoint: string): AuthState {
     setAccessToken(null);
     setUser(null);
     setIsSteamPending(false);
+    await invoke("stop_steam_auth_listener");
   }, []);
 
-  const startSteamLogin = useCallback(() => setIsSteamPending(true), []);
+  const beginSteamLogin = useCallback(async (endpoint: string) => {
+    const resolved = resolveApiEndpoint(endpoint);
+    steamApiEndpointRef.current = resolved;
+    setIsSteamPending(true);
+    try {
+      await invoke("stop_steam_auth_listener");
+      const port = await invoke<number>("start_steam_auth_listener");
+      const authUrl = getSteamLauncherAuthUrl(resolved, port);
+      await openUrl(authUrl);
+    } catch {
+      setIsSteamPending(false);
+      await invoke("stop_steam_auth_listener");
+      window.alert("Não foi possível iniciar o login Steam.");
+    }
+  }, []);
+
+  const cancelSteamLogin = useCallback(() => {
+    setIsSteamPending(false);
+    void invoke("stop_steam_auth_listener");
+  }, []);
 
   return {
     user,
     accessToken,
     isLoading,
     isSteamPending,
-    startSteamLogin,
+    beginSteamLogin,
+    cancelSteamLogin,
     logout,
   };
 }

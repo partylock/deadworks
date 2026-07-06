@@ -74,3 +74,71 @@
   color: #f87171;
   text-align: center;
 }
+
+.apiBadge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: 320px;
+  width: 100%;
+}
+
+.apiBadgeLocal,
+.apiBadgeProd {
+  font-size: 0.68rem;
+  font-family: ui-monospace, monospace;
+  padding: 4px 8px;
+  border-radius: 4px;
+  word-break: break-all;
+  text-align: center;
+}
+
+.apiBadgeLocal {
+  color: #6ee7b7;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.apiBadgeProd {
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.apiDebug {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  font-family: ui-monospace, monospace;
+  opacity: 0.85;
+}
+
+.apiSwitchBtn {
+  padding: 4px 10px;
+  background: transparent;
+  color: #818cf8;
+  border: 1px solid rgba(129, 140, 248, 0.35);
+  border-radius: 4px;
+  font-size: 0.68rem;
+  cursor: pointer;
+}
+
+.apiSwitchBtn:hover {
+  border-color: #818cf8;
+}
+
+.cancelBtn {
+  padding: 8px 12px;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  font-family: var(--font-family);
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.cancelBtn:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.28);
+}

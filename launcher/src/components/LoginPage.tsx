@@ -1,33 +1,20 @@
-import { useState } from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
-import { getSteamLauncherAuthUrl } from "@/lib/api";
 import styles from "./LoginPage.module.css";
 
 interface LoginPageProps {
   apiEndpoint: string;
   isLoading?: boolean;
   isSteamPending?: boolean;
-  onSteamStart?: () => void;
+  onSteamLogin?: (apiEndpoint: string) => Promise<void>;
+  onSteamCancel?: () => void;
 }
 
 export default function LoginPage({
   apiEndpoint,
   isLoading = false,
   isSteamPending = false,
-  onSteamStart,
+  onSteamLogin,
+  onSteamCancel,
 }: LoginPageProps) {
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleSteamLogin() {
-    setError(null);
-    try {
-      await openUrl(getSteamLauncherAuthUrl(apiEndpoint));
-      onSteamStart?.();
-    } catch {
-      setError("Não foi possível abrir o navegador para login Steam.");
-    }
-  }
-
   const busy = isLoading || isSteamPending;
 
   return (
@@ -38,21 +25,19 @@ export default function LoginPage({
       </div>
 
       <div className={styles.actions}>
-        {error && <p className={styles.error}>{error}</p>}
-
         <button
           type="button"
           className={styles.steamBtn}
-          onClick={handleSteamLogin}
+          onClick={() => onSteamLogin?.(apiEndpoint)}
           disabled={busy}
         >
           {isSteamPending ? "AGUARDANDO STEAM…" : "ENTRAR COM STEAM"}
         </button>
 
-        {isSteamPending && (
-          <p className={styles.hint}>
-            Complete o login no navegador. O launcher abrirá automaticamente.
-          </p>
+        {isSteamPending && onSteamCancel && (
+          <button type="button" className={styles.cancelBtn} onClick={onSteamCancel}>
+            Cancelar
+          </button>
         )}
       </div>
     </div>

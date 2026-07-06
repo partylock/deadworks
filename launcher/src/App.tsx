@@ -11,8 +11,8 @@ import type { MatchReadyPayload } from "@/lib/types";
 import styles from "./App.module.css";
 
 export default function App() {
-  const { apiEndpoint } = useSettings();
-  const { user, accessToken, isLoading, isSteamPending, startSteamLogin, logout } =
+  const { apiEndpoint, isSettingsReady } = useSettings();
+  const { user, accessToken, isLoading, isSteamPending, beginSteamLogin, cancelSteamLogin, logout } =
     useAuth(apiEndpoint);
   const socket = usePlayerSocket(apiEndpoint, accessToken);
   const [connectTarget, setConnectTarget] = useState<MatchReadyPayload | null>(null);
@@ -65,14 +65,15 @@ export default function App() {
     <>
       <Titlebar />
       <main className={styles.main}>
-        {isLoading ? (
+        {isLoading || !isSettingsReady ? (
           <div className={styles.loading}>Carregando…</div>
         ) : !user || !accessToken ? (
           <LoginPage
             apiEndpoint={apiEndpoint}
             isLoading={isLoading}
             isSteamPending={isSteamPending}
-            onSteamStart={startSteamLogin}
+            onSteamLogin={beginSteamLogin}
+            onSteamCancel={cancelSteamLogin}
           />
         ) : (
           <MatchPanel

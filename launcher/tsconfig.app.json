@@ -19,6 +19,7 @@
   },
   "include": ["src"],
   "exclude": [
+    "src/**/*.spec.ts",
     "src/components/ServersPage.tsx",
     "src/components/ServerInfoWindow.tsx",
     "src/components/ServerTable.tsx",

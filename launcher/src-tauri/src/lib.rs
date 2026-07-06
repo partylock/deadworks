@@ -3,7 +3,13 @@ mod connect;
 mod deep_link;
 mod gameinfo;
 mod ping;
+mod steam_auth_listener;
 mod telemetry;
+
+#[tauri::command]
+fn is_debug_build() -> bool {
+    cfg!(debug_assertions)
+}
 
 fn patch_gameinfo_on_startup() {
     let game_dir_buf;
@@ -68,6 +74,9 @@ pub fn run() {
             addons::prepare_and_connect_match,
             ping::ping_server,
             deep_link::auth_callback_ready,
+            steam_auth_listener::start_steam_auth_listener,
+            steam_auth_listener::stop_steam_auth_listener,
+            is_debug_build,
         ])
         .setup(|app| {
             use tauri::menu::{Menu, MenuItem};
