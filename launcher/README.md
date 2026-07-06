@@ -42,6 +42,10 @@ Link fixo (sempre aponta para a última release):
 
 `https://github.com/partylock/deadworks/releases/latest/download/PartyLock-setup-x64.exe`
 
+Link curto no site (redirect gratuito via `app/public/_redirects` no Cloudflare Pages):
+
+`https://partylock.com.br/download/launcher`
+
 O CI renomeia o instalador para `PartyLock-setup-x64.exe` em cada release — o nome precisa ser sempre o mesmo para o `/latest/download/` funcionar.
 
 ### API de produção
