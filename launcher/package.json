@@ -5,12 +5,17 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "build:win": "npm run tauri build",
+    "build:installer": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/build-windows.ps1",
+    "release": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/release.ps1",
+    "release:patch": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/release.ps1 -Bump patch",
+    "release:ci": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/release.ps1 -Bump patch -Tag -Push -Commit"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2.10.1",
+    "@tauri-apps/api": "2.10.1",
     "@tauri-apps/plugin-dialog": "^2.7.0",
     "@tauri-apps/plugin-opener": "^2.5.3",
     "@tauri-apps/plugin-process": "^2.3.1",
@@ -24,6 +29,7 @@
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.10.1",
+    "@types/node": "^22.20.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
